@@ -25,4 +25,5 @@ RUN pip install --upgrade pip \
 COPY . /app
 
 # Run the application
-CMD ["python", "main.py"]
+#CMD ["python", "main.py"]
+CMD ["python", "smartflo_server.py"]
