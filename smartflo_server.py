@@ -44,6 +44,9 @@ from smartflo_audio import smartflo_service, audio_converter, SmartfloAudioConve
 # Import only the pure functions / state map; not the Flask app itself.
 import solar_webhook as bot_module
 
+# ── Database (conversation logger) ─────────────────────────────────────────────
+from db import db
+
 load_dotenv()
 
 # ---------------------------------------------------------------------------
@@ -544,7 +547,10 @@ async def start_call_test():
     import uuid
     session_id = str(uuid.uuid4())
     bot_reply = bot_module.ask_instant_ai(session_id, is_start=True)
-    
+
+    # Register call in DB (no mobile known from browser test — use 'browser_test')
+    db.create_call(session_id, mobile_number="browser_test")
+
     # Use pre-recorded audio if available, otherwise generate TTS
     if bot_reply in bot_module.PRE_RECORDED_AUDIO:
         audio_url = f"/{bot_module.PRE_RECORDED_AUDIO[bot_reply]}"
@@ -553,7 +559,7 @@ async def start_call_test():
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, bot_module.text_to_speech_hi, bot_reply, audio_file)
         audio_url = f"/{audio_file}"
-    
+
     return {
         "session_id": session_id,
         "text": bot_reply,
@@ -705,6 +711,30 @@ async def smartflo_ws(websocket: WebSocket):
                 session    = smartflo_service.create_session(start_data)
                 session_id = stream_sid  # use stream_sid as bot session key
 
+                # ── Extract caller mobile number ────────────────────────────
+                # SmartFlo puts caller info in different fields depending on
+                # the call type (inbound vs outbound dialer).
+                # Try multiple known field paths.
+                custom_data  = start_data.get("customData", {})
+                caller_number = (
+                    custom_data.get("callerNumber")
+                    or custom_data.get("caller_number")
+                    or custom_data.get("phoneNumber")
+                    or custom_data.get("mobile")
+                    or custom_data.get("from")
+                    or start_data.get("callerNumber")
+                    or start_data.get("caller_number")
+                    or start_data.get("from")
+                    or "unknown"
+                )
+                # Strip leading country code formatting if needed
+                caller_number = str(caller_number).strip().lstrip("+")
+                print(f"[SmartFlo] Caller number: {caller_number}")
+
+                # Register call in DB
+                call_sid = start_data.get("callSid", "")
+                db.create_call(session_id, mobile_number=caller_number, call_sid=call_sid)
+
                 # Split greeting into two parts to reduce initial TTFB (Time To First Byte)
                 # First part is short (Greeting), Second part is longer (Subsidy intro)
                 part1 = getattr(bot_module, "STATE_1_GREETING_PART1", "")
@@ -809,6 +839,11 @@ async def smartflo_ws(websocket: WebSocket):
             # ── STOP ───────────────────────────────────────────────────
             if event_type == "stop":
                 print(f"[SmartFlo] 'stop' event — stream:{stream_sid}")
+                # Mark call dropped in DB if not already completed by bot logic
+                if session_id:
+                    current_state = bot_module.sessions.get(session_id, {}).get("state", "")
+                    if current_state != "ENDED":
+                        db.complete_call(session_id, lead_data=bot_module.sessions.get(session_id, {}).get("data", {}), status="dropped")
                 break
 
             # ── CLEAR (interruption from platform) ─────────────────────
@@ -818,6 +853,11 @@ async def smartflo_ws(websocket: WebSocket):
 
     except WebSocketDisconnect:
         print("[SmartFlo] WebSocket disconnected")
+        # Mark call dropped if not already ended
+        if session_id:
+            current_state = bot_module.sessions.get(session_id, {}).get("state", "")
+            if current_state != "ENDED":
+                db.complete_call(session_id, lead_data=bot_module.sessions.get(session_id, {}).get("data", {}), status="dropped")
     except Exception as e:
         print(f"[SmartFlo] Unexpected error: {e}")
         try:

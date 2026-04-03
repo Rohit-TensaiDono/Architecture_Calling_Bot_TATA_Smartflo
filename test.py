@@ -3,7 +3,7 @@ import base64
 import os
 
 client = SarvamAI(
-    api_subscription_key="sk_f4m68vei_79Gq5UPYq1dKawQeu49o0sdS",
+    api_subscription_key="sk_1egy7shz_foVYeKo9OrfrtR454ZagxTyw",
 )
 
 response = client.text_to_speech.convert(

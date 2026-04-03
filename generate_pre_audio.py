@@ -1,37 +1,65 @@
 """
 Generate pre-recorded audio files for all bot states using Sarvam AI TTS.
 Run this script once to generate all audio files in static/pre_audio/
+
+New Flow (Mierae Solar UP Script — High-Converting Final Version):
+  STATE_1_GREETING  → Opening / interest check
+  STATE_1_NO_END    → User not interested — polite goodbye
+  STATE_2_PROPERTY  → Property type question
+  STATE_3_BILL      → Monthly bill range question
+  STATE_4_TIMELINE  → Installation timeline question
+  STATE_5_PAYMENT   → Payment preference question
+  STATE_6_CLOSING   → Closing / thank you
+  STATE_DISCONNECT  → Call disconnected
 """
 from sarvamai import SarvamAI
 import base64
 import os
 
 client = SarvamAI(
-    api_subscription_key="sk_f4m68vei_79Gq5UPYq1dKawQeu49o0sdS",
+    api_subscription_key="sk_1egy7shz_foVYeKo9OrfrtR454ZagxTyw",
 )
 
 # All state texts to generate audio for
 STATES = {
-    "STATE_1_GREETING": "नमस्ते! मैं Mierae Solar की तरफ़ से बोल रही हूँ। हम एक सरकारी-मान्यता प्राप्त सोलर कंपनी हैं। क्या आप जानते हैं कि घर पर सोलर लगवाने पर सरकार 78 हज़ार रुपये तक की सब्सिडी दे रही है? क्या मैं आपको इसका विवरण सिर्फ़ दो मिनट में समझा दूँ?",
-    "STATE_1_GREETING_PART1": "नमस्ते! मैं Mierae Solar की तरफ़ से बोल रही हूँ।",
-    "STATE_1_GREETING_PART2": "हम एक सरकारी-मान्यता प्राप्त सोलर कंपनी हैं। क्या आप जानते हैं कि घर पर सोलर लगवाने पर सरकार 78 हज़ार रुपये तक की सब्सिडी दे रही है? क्या मैं आपको इसका विवरण सिर्फ़ दो मिनट में समझा दूँ?",
-    "STATE_2_OWN_HOUSE": "क्या जिस घर में आप सोलर लगवाना चाहते हैं वह आपका अपना है?",
-    "STATE_2_NO_END": "पच्चीस लाख से ज़्यादा परिवार सब्सिडी ले चुके हैं और ज़ीरो बिजली बिल दे रहे हैं। अगर आप कभी सोलर लगवाना चाहें तो इसी नंबर पर कॉल करें। Thank you for your time. Have a great day.",
-    "STATE_3_ELEC": "क्या आपके घर में बिजली का कनेक्शन है?",
-    "STATE_3_NO_REF": "कोई बात नहीं! आप किसी ऐसे व्यक्ति को रेफ़र कर सकते हैं जिनका खुद का घर है और जिनका बिजली बिल अधिक आता है। हर रेफ़रल पर आपको 5 हज़ार रुपये सीधे आपके बैंक खाते में मिलेंगे। क्या रेफ़रल प्रोग्राम समझाने के लिए मैं हमारी टीम का एक कॉल-बैक बुक कर दूँ?",
-    "STATE_4_BILL": "आपका औसत मासिक बिजली बिल कितना आता है?",
-    "STATE_5_CALLBACK": "बधाई हो! आप 78 हज़ार रुपये तक की सब्सिडी और तीस साल तक की मुफ़्त बिजली के लिए पात्र हैं। आवेदन आगे बढ़ाने के लिए क्या मैं आपके लिए हमारे सोलर एक्सपर्ट का एक कॉल-बैक अरेंज कर दूँ?",
-    "STATE_5_ZERO": "आप फ़िर भी अपने घर में सोलर लगवाकर 78 हज़ार रुपये तक की सब्सिडी सीधे अपने बैंक खाते में प्राप्त कर सकते हैं। आवेदन आगे बढ़ाने के लिए क्या मैं आपके लिए हमारे सोलर एक्सपर्ट का एक कॉल-बैक अरेंज कर दूँ?",
-    "STATE_6_DATE": "आप हमारे सोलर एक्सपर्ट का कॉल-बैक कब अटेंड करना चाहेंगे?",
-    "STATE_6_NO_END": "Mierae Solar सोलर इंस्टॉलेशन के लिए A से Z तक की पूरी जिम्मेदारी लेता है। Thank you for your time. Have a great day.",
-    "STATE_7_TIME": "क्या कोई विशेष समय पसंद है?",
-    "STATE_8_HOME": "हमने कॉल-बैक शेड्यूल कर दिया है। अगर आप चाहें तो हमारी एक फ्री होम विज़िट भी बुक कर सकते हैं, जहाँ इंजीनियर आपको सब समझाएँगे। क्या आप फ्री होम विज़िट बुक करना चाहेंगे?",
-    "STATE_9_ADDR": "कृपया वह पता बताएं जहाँ आप सोलर लगवाना चाहते हैं।",
-    "STATE_9_NO_END": "ठीक है, Thank you for choosing Mierae Solar. Have a nice day.",
-    "STATE_10_HDATE": "हमारे सोलर इंजीनियर को आपके घर कब भेजें?",
-    "STATE_11_HTIME": "क्या कोई विशेष समय पसंद है?",
-    "STATE_12_END": "हमने आपकी होम विज़िट बुक कर दी है। हमारे सोलर इंजीनियर आपके घर आने से तीस मिनट पहले आपको कॉल करेंगे। क्या आपको कोई और सवाल है? अगर नहीं, तो मैं कॉल डिस्कनेक्ट कर रहा हूँ। Thank you for choosing Mierae Solar. Have a nice day.",
-    "STATE_13_DISCONNECT": "धन्यवाद। कॉल समाप्त हो चुकी है। Thank you!",
+    "STATE_1_GREETING": (
+        "नमस्ते! मैं Mierae Solar से Dipti बोल रही हूँ। "
+        "आप अपने घर पर सोलर लगवाकर एक लाख आठ हज़ार रुपये तक की सरकारी सब्सिडी पा सकते हैं, "
+        "और हर महीने चार हज़ार रुपये तक का बिजली बिल बचा सकते हैं। "
+        "क्या आप सोलर के बारे में फ्री जानकारी लेना चाहेंगे?"
+    ),
+    "STATE_1_NO_END": (
+        "कोई बात नहीं! अगर आप कभी सोलर के बारे में जानकारी लेना चाहें तो "
+        "हमें इसी नंबर पर कॉल करें। "
+        "Thank you for your time. Have a great day!"
+    ),
+    "STATE_2_PROPERTY": (
+        "बहुत अच्छा! सबसे पहले बताएँ, आपकी प्रॉपर्टी किस टाइप की है? "
+        "क्या यह एक इंडिपेंडेंट हाउस है, अपार्टमेंट है, या कमर्शियल प्रॉपर्टी है?"
+    ),
+    "STATE_3_BILL": (
+        "आपका औसत मासिक बिजली का बिल कितना आता है? "
+        "क्या यह एक हज़ार से दो हज़ार के बीच है, "
+        "दो हज़ार से पाँच हज़ार के बीच है, "
+        "या पाँच हज़ार से ज़्यादा है?"
+    ),
+    "STATE_4_TIMELINE": (
+        "आप सोलर इंस्टॉलेशन कब तक करवाना चाहते हैं? "
+        "क्या एक महीने के अंदर, एक से तीन महीने के अंदर, "
+        "या अभी सिर्फ़ एन्क्वायरी कर रहे हैं?"
+    ),
+    "STATE_5_PAYMENT": (
+        "आप पेमेंट कैसे करना prefer करेंगे? "
+        "फुल पेमेंट, या बैंक लोन?"
+    ),
+    "STATE_6_CLOSING": (
+        "धन्यवाद! आपकी डिटेल्स successfully receive हो गई हैं। "
+        "हमारी टीम आपको जल्दी ही contact करेगी और free home visit schedule करेगी। "
+        "इस visit के दौरान, हमारे expert engineer आपकी property inspect करके "
+        "best solar solution suggest करेंगे। "
+        "Thank you for choosing Mierae Solar. Have a great day!"
+    ),
+    "STATE_DISCONNECT": "धन्यवाद। कॉल समाप्त हो चुकी है। Thank you!",
 }
 
 os.makedirs("static/pre_audio", exist_ok=True)
@@ -41,7 +69,7 @@ failed = 0
 
 for name, text in STATES.items():
     output_path = f"static/pre_audio/{name}.wav"
-    
+
     print(f"[{success + failed + 1}/{len(STATES)}] Generating {name}...")
     try:
         response = client.text_to_speech.convert(
@@ -53,8 +81,7 @@ for name, text in STATES.items():
             enable_preprocessing=True,
             model="bulbul:v3"
         )
-        
-        # Sarvam AI returns base64-encoded audio in response.audios
+
         if hasattr(response, 'audios') and response.audios:
             audio_data = base64.b64decode(response.audios[0])
             with open(output_path, 'wb') as f:
