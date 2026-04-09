@@ -83,7 +83,7 @@ STATE_1_GREETING = (
 STATE_1_NO_END = (
     "कोई बात नहीं! अगर आप कभी सोलर के बारे में जानकारी लेना चाहें तो "
     "हमें इसी नंबर पर कॉल करें। "
-    "Thank you for your time. Have a great day!"
+    "Thank you for your time. Have a great day"
 )
 
 STATE_2_PROPERTY = (
@@ -114,7 +114,7 @@ STATE_6_CLOSING = (
     "हमारी टीम आपको जल्दी ही contact करेगी और free home visit schedule करेगी। "
     "इस visit के दौरान, हमारे expert engineer आपकी property inspect करके "
     "best solar solution suggest करेंगे। "
-    "Thank you for choosing Mierae Solar. Have a great day!"
+    "Thank you for choosing Mierae Solar. Have a great day"
 )
 
 STATE_DISCONNECT = "धन्यवाद। कॉल समाप्त हो चुकी है। Thank you!"
@@ -150,7 +150,17 @@ PRE_RECORDED_AUDIO = {
     STATE_5_PAYMENT:   "static/pre_audio/STATE_5_PAYMENT.wav",
     STATE_6_CLOSING:   "static/pre_audio/STATE_6_CLOSING.wav",
     STATE_DISCONNECT:  "static/pre_audio/STATE_DISCONNECT.wav",
+    
+    # Retry / Error pre-recordings
+    END_MISUNDERSTAND: "static/pre_audio/END_MISUNDERSTAND.wav",
+    NO_SPEECH_END:     "static/pre_audio/NO_SPEECH_END.wav",
+    RETRY_PREFIX + "कृपया दोबारा बोलें।": "static/pre_audio/NO_SPEECH_RETRY.wav",
 }
+
+# Auto-add retry questions to pre-recorded mapping
+for state_key, q_text in RETRY_QUESTIONS.items():
+    full_retry_text = RETRY_PREFIX + q_text
+    PRE_RECORDED_AUDIO[full_retry_text] = f"static/pre_audio/{state_key}_RETRY.wav"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Intent helpers
@@ -222,7 +232,7 @@ def _detect_property_type(text):
     if gemini_model:
         try:
             resp = gemini_model.generate_content(
-                f"User replied to 'what type of property do you have?' in Hindi/Hinglish: \"{text}\"\n"
+                f"User replied to 'what type of property do you have?' in English/Hindi/Hinglish: \"{text}\"\n"
                 "Reply ONLY one word: INDEPENDENT, APARTMENT, or COMMERCIAL. If unclear, reply UNCLEAR.",
                 generation_config=genai.GenerationConfig(max_output_tokens=5, temperature=0)
             )
@@ -276,7 +286,7 @@ def _detect_bill_range(text):
     if gemini_model:
         try:
             resp = gemini_model.generate_content(
-                f"User answered electricity bill amount in Hindi/Hinglish: \"{text}\"\n"
+                f"User answered electricity bill amount in English/Hindi/Hinglish: \"{text}\"\n"
                 "Reply ONLY: LOW (₹1000-2000), MID (₹2000-5000), HIGH (₹5000+), or UNCLEAR.",
                 generation_config=genai.GenerationConfig(max_output_tokens=5, temperature=0)
             )
@@ -322,7 +332,7 @@ def _detect_timeline(text):
     if gemini_model:
         try:
             resp = gemini_model.generate_content(
-                f"User answered solar installation timeline in Hindi/Hinglish: \"{text}\"\n"
+                f"User answered solar installation timeline in English/Hindi/Hinglish: \"{text}\"\n"
                 "Reply ONLY: 1MONTH (within 1 month), 1TO3MONTHS (1-3 months), ENQUIRY (just enquiry/future), or UNCLEAR.",
                 generation_config=genai.GenerationConfig(max_output_tokens=5, temperature=0)
             )
@@ -361,7 +371,7 @@ def _detect_payment(text):
     if gemini_model:
         try:
             resp = gemini_model.generate_content(
-                f"User answered payment preference for solar in Hindi/Hinglish: \"{text}\"\n"
+                f"User answered payment preference for solar in English/Hindi/Hinglish: \"{text}\"\n"
                 "Reply ONLY: FULL (full payment / cash) or LOAN (bank loan / EMI) or UNCLEAR.",
                 generation_config=genai.GenerationConfig(max_output_tokens=5, temperature=0)
             )
@@ -402,6 +412,15 @@ _STATE_QUESTION_MAP = {
     "STATE_6": STATE_6_CLOSING,
 }
 
+_STATE_QUESTION_MAP_EN = {
+    "STATE_1": "Hello! I am Dipti speaking from Mierae Solar. By installing solar at your house, you can get a government subsidy of up to 1 lakh 8 thousand rupees, and save your electricity bill up to four thousand rupees every month. Would you like to take free information about solar?",
+    "STATE_2": "Very good! Firstly tell me, what type of property do you have? Is it an independent house, apartment, or commercial property?",
+    "STATE_3": "What is your average monthly electricity bill? Is it between one thousand and two thousand, between two thousand and five thousand, or more than five thousand?",
+    "STATE_4": "When do you want to get the solar installation done? Within one month, within one to three months, or are you just inquiring right now?",
+    "STATE_5": "How would you prefer to make the payment? Full payment, or bank loan?",
+    "STATE_6": "Thank you! Your details have been successfully received. Our team will contact you shortly and schedule a free home visit. During this visit, our expert engineer will inspect your property and suggest the best solar solution. Thank you for choosing Mierae Solar. Have a great day",
+}
+
 
 def ask_instant_ai(session_id, user_text=None, is_start=False):
     if session_id not in sessions:
@@ -425,7 +444,7 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
         """Log (question asked in this state, user's answer) to the DB."""
         turn = sessions[session_id]["turn"] + 1
         sessions[session_id]["turn"] = turn
-        question_text = _STATE_QUESTION_MAP.get(state, state)
+        question_text = _STATE_QUESTION_MAP_EN.get(state, state)
         db.add_exchange(session_id, question_text, answer, state, turn)
 
     # Helper: mark call complete in DB
@@ -560,6 +579,7 @@ def start_call():
     if bot_reply in PRE_RECORDED_AUDIO:
         audio_url = f"/{PRE_RECORDED_AUDIO[bot_reply]}"
     else:
+        print("not found pre recorded audio")
         audio_file = f"static/intro_{session_id}.wav"
         text_to_speech_hi(bot_reply, audio_file)
         audio_url = f"/{audio_file}"
@@ -611,7 +631,7 @@ def webhook():
         r.energy_threshold = 300
         with sr.AudioFile(wav_path) as source:
             audio_data = r.record(source)
-        user_text = r.recognize_google(audio_data, language="hi-IN")
+        user_text = r.recognize_google(audio_data, language="en-IN")
         print(f"[Session {session_id}] Transcription: '{user_text}'")
 
         os.remove(wav_path)

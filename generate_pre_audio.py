@@ -31,7 +31,7 @@ STATES = {
     "STATE_1_NO_END": (
         "कोई बात नहीं! अगर आप कभी सोलर के बारे में जानकारी लेना चाहें तो "
         "हमें इसी नंबर पर कॉल करें। "
-        "Thank you for your time. Have a great day!"
+        "Thank you for your time. Have a great day"
     ),
     "STATE_2_PROPERTY": (
         "बहुत अच्छा! सबसे पहले बताएँ, आपकी प्रॉपर्टी किस टाइप की है? "
@@ -57,7 +57,7 @@ STATES = {
         "हमारी टीम आपको जल्दी ही contact करेगी और free home visit schedule करेगी। "
         "इस visit के दौरान, हमारे expert engineer आपकी property inspect करके "
         "best solar solution suggest करेंगे। "
-        "Thank you for choosing Mierae Solar. Have a great day!"
+        "Thank you for choosing Mierae Solar. Have a great day"
     ),
     "STATE_DISCONNECT": "धन्यवाद। कॉल समाप्त हो चुकी है। Thank you!",
 }

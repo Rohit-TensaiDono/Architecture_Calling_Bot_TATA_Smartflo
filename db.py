@@ -56,7 +56,8 @@ CREATE_CALLS_TABLE = """
 CREATE TABLE IF NOT EXISTS calls (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id      TEXT    NOT NULL UNIQUE,
-    mobile_number   TEXT    DEFAULT 'unknown',
+    mobile_number   TEXT    DEFAULT 'unknown',   -- This will be the caller / DID
+    customer_number TEXT    DEFAULT 'unknown',   -- The actual customer
     call_sid        TEXT    DEFAULT '',
     started_at      TEXT    NOT NULL,
     ended_at        TEXT    DEFAULT NULL,
@@ -93,6 +94,13 @@ def init_db():
         cur.execute(CREATE_CONV_TABLE)
         cur.execute(CREATE_IDX_SESSION)
         cur.execute(CREATE_IDX_MOBILE)
+        
+        # Migration: add customer_number if it doesn't exist in older databases
+        try:
+            cur.execute("ALTER TABLE calls ADD COLUMN customer_number TEXT DEFAULT 'unknown'")
+        except sqlite3.OperationalError:
+            pass # Column already exists
+            
     print(f"[DB] Initialized — {DB_PATH}")
 
 
@@ -102,17 +110,17 @@ def init_db():
 
 class ConversationDB:
 
-    def create_call(self, session_id: str, mobile_number: str = "unknown", call_sid: str = "") -> None:
+    def create_call(self, session_id: str, mobile_number: str = "unknown", customer_number: str = "unknown", call_sid: str = "") -> None:
         """Register a new call session in the database."""
         try:
             with _cursor() as cur:
                 cur.execute(
                     """INSERT OR IGNORE INTO calls
-                       (session_id, mobile_number, call_sid, started_at, call_status)
-                       VALUES (?, ?, ?, ?, 'ongoing')""",
-                    (session_id, mobile_number, call_sid, datetime.now().isoformat())
+                       (session_id, mobile_number, customer_number, call_sid, started_at, call_status)
+                       VALUES (?, ?, ?, ?, ?, 'ongoing')""",
+                    (session_id, mobile_number, customer_number, call_sid, datetime.now().isoformat())
                 )
-            print(f"[DB] Call created — session:{session_id[:8]}… mobile:{mobile_number}")
+            print(f"[DB] Call created — session:{session_id[:8]}… DID:{mobile_number} Customer:{customer_number}")
         except Exception as e:
             print(f"[DB] create_call error: {e}")
 
@@ -176,6 +184,38 @@ class ConversationDB:
                     )
                 )
             print(f"[DB] Call completed — session:{session_id[:8]}… status:{status} lead:{lead_data}")
+
+            def _send_webhook():
+                try:
+                    import requests
+                    call_info = self.get_call(session_id)
+                    conv_info = self.get_conversation(session_id)
+                    
+                    qa_dict = {}
+                    if conv_info:
+                        for row in conv_info:
+                            qa_dict[row["question"]] = row["answer"]
+                            
+                    payload = {
+                        "session_id": session_id,
+                        "mobile_no": call_info.get("mobile_number") if call_info else "unknown",
+                        "call_status": call_info.get("call_status") if call_info else status,
+                        "customer_number": call_info.get("customer_number") if call_info else "unknown",
+                        "call_id": call_info.get("call_sid") if call_info else "",
+                        "qa_dict": qa_dict
+                    }
+                    
+                    import os
+                    webhook_url = os.getenv("WEBHOOK_URL", "https://exactable-magniloquently-lavada.ngrok-free.dev/webhook/call")
+                    print(f"[Webhook] Sending call data for {session_id}, payload: {payload}")
+                    resp = requests.post(webhook_url, json=payload, timeout=10)
+                    print(f"[Webhook] Sent call data for {session_id}, call_id: {payload['call_id']}, status: {resp.status_code} and  response body: {resp.text}")
+                except Exception as e:
+                    print(f"[Webhook] Failed to send call data: {e}")
+                    
+            import threading
+            threading.Thread(target=_send_webhook, daemon=True).start()
+
         except Exception as e:
             print(f"[DB] complete_call error: {e}")
 
@@ -241,3 +281,29 @@ db = ConversationDB()
 
 # Initialize tables on import
 init_db()
+
+# ── Stale Call Cleanup Loop ──
+def _cleanup_stale_calls_loop():
+    import time
+    from datetime import datetime
+    while True:
+        try:
+            conn = _get_conn()
+            rows = conn.execute(
+                "SELECT session_id, started_at FROM calls WHERE call_status = 'ongoing'"
+            ).fetchall()
+            now = datetime.now()
+            for row in rows:
+                try:
+                    started = datetime.fromisoformat(row["started_at"])
+                    if (now - started).total_seconds() > 600:  # 10 minutes
+                        print(f"[DB] Call stuck in ongoing for >10 mins, force-dropping: {row['session_id']}")
+                        db.complete_call(row["session_id"], status="dropped")
+                except Exception as e:
+                    pass
+        except Exception as e:
+            print(f"[DB] Cleanup loop error: {e}")
+        time.sleep(60)
+
+import threading
+threading.Thread(target=_cleanup_stale_calls_loop, daemon=True).start()

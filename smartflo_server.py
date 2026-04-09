@@ -217,7 +217,7 @@ def transcribe_mulaw(mulaw_data: bytes) -> str:
         response = _sarvam_client.speech_to_text.transcribe(
             file=("audio.wav", io.BytesIO(wav_bytes)),
             model="saaras:v3",
-            language_code="hi-IN",
+            language_code="en-IN",
         )
         text = (response.transcript or "").strip()
         if text:
@@ -232,7 +232,7 @@ def transcribe_mulaw(mulaw_data: bytes) -> str:
         import io
         with sr.AudioFile(io.BytesIO(wav_bytes)) as src:
             audio_data = _recognizer.record(src)
-        text = _recognizer.recognize_google(audio_data, language="hi-IN")
+        text = _recognizer.recognize_google(audio_data, language="en-IN")
         print(f"[Google STT Fallback] '{text}'")
         return text
     except sr.UnknownValueError:
@@ -254,7 +254,8 @@ def tts_to_mulaw(text: str) -> bytes:
     if pre_audio:
         print(f"[SmartFlo] Using static pre-recorded audio for: {text[:40]}…")
         return pre_audio
-
+    else:
+        print("not found pre recorded audio")
     # 2. Dynamic TTS generation (Sarvam AI)
     import tempfile, os as _os
     tmp_wav = tempfile.mktemp(suffix=".wav")
@@ -604,7 +605,7 @@ async def webhook_test(
             response = _sarvam_client.speech_to_text.transcribe(
                 file=("audio.wav", io.BytesIO(wav_bytes)),
                 model="saaras:v3",
-                language_code="hi-IN",
+                language_code="en-IN",
             )
             user_text = (response.transcript or "").strip()
             if user_text:
@@ -619,7 +620,7 @@ async def webhook_test(
                 r = sr.Recognizer()
                 with sr.AudioFile(wav_path) as source:
                     audio_data = r.record(source)
-                user_text = r.recognize_google(audio_data, language="hi-IN")
+                user_text = r.recognize_google(audio_data, language="en-IN")
                 print(f"[Browser Test] Google STT fallback: '{user_text}'")
             except Exception as e2:
                 print(f"[Browser Test] Google STT fallback error: {e2}")
@@ -711,29 +712,43 @@ async def smartflo_ws(websocket: WebSocket):
                 session    = smartflo_service.create_session(start_data)
                 session_id = stream_sid  # use stream_sid as bot session key
 
-                # ── Extract caller mobile number ────────────────────────────
+                # ── Extract numbers ────────────────────────────────────────────
                 # SmartFlo puts caller info in different fields depending on
                 # the call type (inbound vs outbound dialer).
-                # Try multiple known field paths.
                 custom_data  = start_data.get("customData", {})
-                caller_number = (
-                    custom_data.get("callerNumber")
+                
+                # 1. Customer Number (the actual user)
+                customer_number = (
+                    custom_data.get("customerNumber")
+                    or custom_data.get("customer_number")
+                    or custom_data.get("destination_number")
+                    or custom_data.get("to")
+                    or start_data.get("customerNumber")
+                    or start_data.get("to")
+                    or "unknown"
+                )
+                
+                # 2. Agent/DID Number (the bot's number)
+                agent_number = (
+                    custom_data.get("agent_number")
+                    or custom_data.get("callerNumber")
                     or custom_data.get("caller_number")
-                    or custom_data.get("phoneNumber")
-                    or custom_data.get("mobile")
                     or custom_data.get("from")
                     or start_data.get("callerNumber")
                     or start_data.get("caller_number")
                     or start_data.get("from")
                     or "unknown"
                 )
+                
                 # Strip leading country code formatting if needed
-                caller_number = str(caller_number).strip().lstrip("+")
-                print(f"[SmartFlo] Caller number: {caller_number}")
+                customer_number = str(customer_number).strip().lstrip("+")
+                agent_number = str(agent_number).strip().lstrip("+")
+                
+                print(f"[SmartFlo] Customer: {customer_number} | DID/Agent: {agent_number}")
 
                 # Register call in DB
                 call_sid = start_data.get("callSid", "")
-                db.create_call(session_id, mobile_number=caller_number, call_sid=call_sid)
+                db.create_call(session_id, mobile_number=agent_number, customer_number=customer_number, call_sid=call_sid)
 
                 # Split greeting into two parts to reduce initial TTFB (Time To First Byte)
                 # First part is short (Greeting), Second part is longer (Subsidy intro)
