@@ -12,6 +12,7 @@ New Flow (Mierae Solar UP Script — High-Converting Final Version):
   STATE_6_CLOSING   → Closing / thank you
   STATE_DISCONNECT  → Call disconnected
 """
+
 from sarvamai import SarvamAI
 import base64
 import os
@@ -20,46 +21,44 @@ client = SarvamAI(
     api_subscription_key="sk_1egy7shz_foVYeKo9OrfrtR454ZagxTyw",
 )
 
-# All state texts to generate audio for
+# All state texts to generate audio for (ODIA CONVERTED)
 STATES = {
     "STATE_1_GREETING": (
-        "नमस्ते! मैं Mierae Solar से Dipti बोल रही हूँ। "
-        "आप अपने घर पर सोलर लगवाकर एक लाख आठ हज़ार रुपये तक की सरकारी सब्सिडी पा सकते हैं, "
-        "और हर महीने चार हज़ार रुपये तक का बिजली बिल बचा सकते हैं। "
-        "क्या आप सोलर के बारे में फ्री जानकारी लेना चाहेंगे?"
+        "ନମସ୍କାର! ମୁଁ Mierae Solar ରୁ ଦୀପ୍ତି କହୁଛି। "
+        "ଆପଣ ନିଜ ଘରେ ସୋଲାର ଲଗାଇ ସରକାରୀ ସବସିଡି ପାଇପାରିବେ, "
+        "ଏବଂ ପ୍ରତିମାସ ବିଦ୍ୟୁତ ବିଲ୍ ବଞ୍ଚାଇପାରିବେ। "
+        "ଆପଣ ସୋଲାର ବିଷୟରେ ମାଗଣା ସୂଚନା ନେବାକୁ ଇଚ୍ଛା କରିବେ କି?"
     ),
     "STATE_1_NO_END": (
-        "कोई बात नहीं! अगर आप कभी सोलर के बारे में जानकारी लेना चाहें तो "
-        "हमें इसी नंबर पर कॉल करें। "
-        "Thank you for your time. Have a great day"
+        "କିଛି ନୁହେଁ! ଯଦି ପରେ ଆପଣ ସୋଲାର ବିଷୟରେ ଜାଣିବାକୁ ଚାହିବେ, "
+        "ତେବେ ଆମକୁ ଏହି ନମ୍ବରରେ କଲ୍ କରନ୍ତୁ। "
+        "ଧନ୍ୟବାଦ! ଆପଣଙ୍କ ଦିନଟି ଭଲ କଟୁ।"
     ),
     "STATE_2_PROPERTY": (
-        "बहुत अच्छा! सबसे पहले बताएँ, आपकी प्रॉपर्टी किस टाइप की है? "
-        "क्या यह एक इंडिपेंडेंट हाउस है, अपार्टमेंट है, या कमर्शियल प्रॉपर्टी है?"
+        "ଆପଣଙ୍କ ପ୍ରୋପର୍ଟି କଣ ପ୍ରକାରର? "
+        "ଏହା ସ୍ୱତନ୍ତ୍ର ଘର, ଆପାର୍ଟମେଣ୍ଟ କିମ୍ବା କମର୍ସିଆଲ୍ ପ୍ରୋପର୍ଟି?"
     ),
     "STATE_3_BILL": (
-        "आपका औसत मासिक बिजली का बिल कितना आता है? "
-        "क्या यह एक हज़ार से दो हज़ार के बीच है, "
-        "दो हज़ार से पाँच हज़ार के बीच है, "
-        "या पाँच हज़ार से ज़्यादा है?"
+        "ଆପଣଙ୍କ ମାସିକ ବିଦ୍ୟୁତ ବିଲ୍ କେତେ ଆସେ? "
+        "ଏକ ହଜାରରୁ ଦୁଇ ହଜାର, "
+        "ଦୁଇ ହଜାରରୁ ପାଞ୍ଚ ହଜାର, "
+        "ନା କି ପାଞ୍ଚ ହଜାରରୁ ଅଧିକ?"
     ),
     "STATE_4_TIMELINE": (
-        "आप सोलर इंस्टॉलेशन कब तक करवाना चाहते हैं? "
-        "क्या एक महीने के अंदर, एक से तीन महीने के अंदर, "
-        "या अभी सिर्फ़ एन्क्वायरी कर रहे हैं?"
+        "ଆପଣ କେବେ ସୋଲାର ଇନ୍ସଟଲେସନ୍ କରିବାକୁ ଚାହୁଁଛନ୍ତି? "
+        "ଏକ ମାସ ଭିତରେ, ଏକରୁ ତିନି ମାସ ମଧ୍ୟରେ, "
+        "ନା କି ଏବେ କେବଳ ଜାଣିବାକୁ ଚାହୁଁଛନ୍ତି?"
     ),
     "STATE_5_PAYMENT": (
-        "आप पेमेंट कैसे करना prefer करेंगे? "
-        "फुल पेमेंट, या बैंक लोन?"
+        "ଆପଣ କିପରି ପେମେଣ୍ଟ କରିବାକୁ ଚାହିବେ? "
+        "ପୁରା ପେମେଣ୍ଟ କିମ୍ବା ବ୍ୟାଙ୍କ ଲୋନ୍?"
     ),
     "STATE_6_CLOSING": (
-        "धन्यवाद! आपकी डिटेल्स successfully receive हो गई हैं। "
-        "हमारी टीम आपको जल्दी ही contact करेगी और free home visit schedule करेगी। "
-        "इस visit के दौरान, हमारे expert engineer आपकी property inspect करके "
-        "best solar solution suggest करेंगे। "
-        "Thank you for choosing Mierae Solar. Have a great day"
+        "ଧନ୍ୟବାଦ! ଆପଣଙ୍କ ତଥ୍ୟ ସଫଳତାର ସହିତ ମିଳିଗଲା। "
+        "ଆମ ଟିମ୍ ଶୀଘ୍ର ଆପଣଙ୍କୁ ସମ୍ପର୍କ କରିବ। "
+        "Mierae Solar ବାଛିଥିବାରୁ ଧନ୍ୟବାଦ!"
     ),
-    "STATE_DISCONNECT": "धन्यवाद। कॉल समाप्त हो चुकी है। Thank you!",
+    "STATE_DISCONNECT": "ଧନ୍ୟବାଦ। କଲ୍ ସମାପ୍ତ ହୋଇଛି।",
 }
 
 os.makedirs("static/pre_audio", exist_ok=True)
@@ -71,10 +70,11 @@ for name, text in STATES.items():
     output_path = f"static/pre_audio/{name}.wav"
 
     print(f"[{success + failed + 1}/{len(STATES)}] Generating {name}...")
+
     try:
         response = client.text_to_speech.convert(
             text=text,
-            target_language_code="hi-IN",
+            target_language_code="od-IN",
             speaker="roopa",
             pace=1.1,
             speech_sample_rate=22050,
@@ -86,12 +86,14 @@ for name, text in STATES.items():
             audio_data = base64.b64decode(response.audios[0])
             with open(output_path, 'wb') as f:
                 f.write(audio_data)
+
             print(f"  OK Saved to {output_path} ({len(audio_data)} bytes)")
             success += 1
         else:
             print(f"  FAILED Unexpected response format: {type(response)}")
             print(f"    Response: {response}")
             failed += 1
+
     except Exception as e:
         print(f"  FAILED Error: {e}")
         failed += 1

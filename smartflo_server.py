@@ -217,7 +217,7 @@ def transcribe_mulaw(mulaw_data: bytes) -> str:
         response = _sarvam_client.speech_to_text.transcribe(
             file=("audio.wav", io.BytesIO(wav_bytes)),
             model="saaras:v3",
-            language_code="en-IN",
+            language_code="od-IN",
         )
         text = (response.transcript or "").strip()
         if text:
@@ -232,7 +232,7 @@ def transcribe_mulaw(mulaw_data: bytes) -> str:
         import io
         with sr.AudioFile(io.BytesIO(wav_bytes)) as src:
             audio_data = _recognizer.record(src)
-        text = _recognizer.recognize_google(audio_data, language="en-IN")
+        text = _recognizer.recognize_google(audio_data, language="or-IN")
         print(f"[Google STT Fallback] '{text}'")
         return text
     except sr.UnknownValueError:
@@ -605,7 +605,7 @@ async def webhook_test(
             response = _sarvam_client.speech_to_text.transcribe(
                 file=("audio.wav", io.BytesIO(wav_bytes)),
                 model="saaras:v3",
-                language_code="en-IN",
+                language_code="od-IN",
             )
             user_text = (response.transcript or "").strip()
             if user_text:
@@ -620,7 +620,7 @@ async def webhook_test(
                 r = sr.Recognizer()
                 with sr.AudioFile(wav_path) as source:
                     audio_data = r.record(source)
-                user_text = r.recognize_google(audio_data, language="en-IN")
+                user_text = r.recognize_google(audio_data, language="or-IN")
                 print(f"[Browser Test] Google STT fallback: '{user_text}'")
             except Exception as e2:
                 print(f"[Browser Test] Google STT fallback error: {e2}")
