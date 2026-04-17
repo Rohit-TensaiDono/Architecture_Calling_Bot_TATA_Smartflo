@@ -641,7 +641,7 @@ def handle_user_input(session, user_text):
     Converts session dict → session_id system.
     """
 
-    from db import db  # required for create_call
+    from db import db
 
     # ── SESSION ID ───────────────────────────────
     if "session_id" not in session:
@@ -649,7 +649,7 @@ def handle_user_input(session, user_text):
 
     session_id = session["session_id"]
 
-    # ── INITIALIZE SESSION (ONLY ONCE) ───────────
+    # ── INIT SESSION ─────────────────────────────
     is_new_session = False
 
     if session_id not in sessions:
@@ -661,17 +661,29 @@ def handle_user_input(session, user_text):
             "no_speech": 0
         }
 
-        # ✅ FIX: create DB call entry (prevents FK error)
         db.create_call(session_id, mobile_number="test")
-
         is_new_session = True
 
-    # ── CALL LOGIC ───────────────────────────────
+    # 🚨 HARD STOP — PREVENT REPEATED "THANK YOU"
+    if sessions[session_id]["state"] in ("STATE_6", "ENDED"):
+        print(f"[INFO] Ignoring input — session already ended ({session_id})")
+
+        return {
+            "text": "",
+            "audio_path": "",
+            "end": True
+        }
+
+    # ── MAIN BOT LOGIC ───────────────────────────
     if is_new_session or sessions[session_id]["turn"] == 0:
         bot_reply = ask_instant_ai(session_id, is_start=True)
         sessions[session_id]["turn"] = 1
     else:
         bot_reply = ask_instant_ai(session_id, user_text=user_text)
+
+    # 🚨 IF THIS RESPONSE ENDS CALL → MARK IT
+    if bot_reply in (STATE_6_CLOSING, STATE_DISCONNECT):
+        sessions[session_id]["state"] = "ENDED"
 
     # ── AUDIO HANDLING ───────────────────────────
     if bot_reply in PRE_RECORDED_AUDIO:
@@ -682,7 +694,8 @@ def handle_user_input(session, user_text):
 
     return {
         "text": bot_reply,
-        "audio_path": audio_path
+        "audio_path": audio_path,
+        "end": sessions[session_id]["state"] == "ENDED"
     }
 
 

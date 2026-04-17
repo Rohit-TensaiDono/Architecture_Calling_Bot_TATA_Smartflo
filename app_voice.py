@@ -45,9 +45,25 @@ def step():
 
     session = sessions[session_id]
 
+    # 🚨 HARD STOP (MOST IMPORTANT FIX)
+    if session.get("state") in ("STATE_6", "ENDED"):
+        print(f"[INFO] Ignoring request — session ended ({session_id})")
+
+        return jsonify({
+            "session_id": session_id,
+            "end": True
+        })
+
     try:
-        # 🔥 FULL FILE (NOT CHUNKS)
         audio_bytes = audio_file.read()
+
+        # 🔒 ignore tiny audio
+        if len(audio_bytes) < 2000:
+            return jsonify({
+                "session_id": session_id,
+                "audio": "/audio?path=static/pre_audio/NO_SPEECH_RETRY.wav",
+                "end": False
+            })
 
         audio = AudioSegment.from_file(
             io.BytesIO(audio_bytes),
@@ -66,18 +82,28 @@ def step():
         user_text = transcribe_mulaw(mulaw)
         print("[USER]:", user_text)
 
+        # 🔁 NO SPEECH
         if not user_text or len(user_text.strip()) < 2:
-            return jsonify({})
+            return jsonify({
+                "session_id": session_id,
+                "audio": "/audio?path=static/pre_audio/NO_SPEECH_RETRY.wav",
+                "end": False
+            })
 
         # → BOT
         response = handle_user_input(session, user_text)
 
         bot_text = response.get("text", "")
         audio_path = response.get("audio_path", "")
+        end_call = response.get("end", False)  # ✅ FIXED
 
         # → TRANSLATION
         user_en = translate_to_english(user_text)
         bot_en = translate_to_english(bot_text)
+
+        # 🚨 FINAL END GUARD
+        if end_call:
+            session["state"] = "ENDED"
 
         return jsonify({
             "session_id": session_id,
@@ -85,13 +111,13 @@ def step():
             "user_en": user_en,
             "bot_text": bot_text,
             "bot_en": bot_en,
-            "audio": f"/audio?path={audio_path}"
+            "audio": f"/audio?path={audio_path}",
+            "end": end_call
         })
 
     except Exception as e:
         print("❌ ERROR:", e)
-        return jsonify({"error": str(e)})
-
+        return jsonify({"error": str(e)})   
 
 @app.route("/audio")
 def serve_audio():
