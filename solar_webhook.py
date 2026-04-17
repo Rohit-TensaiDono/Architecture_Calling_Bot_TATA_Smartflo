@@ -75,7 +75,7 @@ sessions = {}
 
 STATE_1_GREETING = (
     "ନମସ୍କାର! ମୁଁ Mierae Solar ରୁ ଦୀପ୍ତି କହୁଛି। "
-    "ଆପଣ ନିଜ ଘରେ ସୋଲାର ଲଗାଇ ଏକ ଲକ୍ଷ ଆଠ ହଜାର ଟଙ୍କା ପର୍ଯ୍ୟନ୍ତ ସରକାରୀ ସବସିଡି ପାଇପାରିବେ, "
+    "ଆପଣ ନିଜ ଘରେ ସୋଲାର ଲଗାଇ ଏକ ଲକ୍ଷ ଅଠତିରିଶି ହଜାର ଟଙ୍କା ପର୍ଯ୍ୟନ୍ତ ସରକାରୀ ସବସିଡି ପାଇପାରିବେ, "
     "ଏବଂ ପ୍ରତିମାସ ଚାରି ହଜାର ଟଙ୍କା ପର୍ଯ୍ୟନ୍ତ ବିଦ୍ୟୁତ ବିଲ୍ ବଞ୍ଚାଇପାରିବେ। "
     "ଆପଣ ସୋଲାର ବିଷୟରେ ମାଗଣା ସୂଚନା ନେବାକୁ ଇଚ୍ଛା କରିବେ କି?"
 )
@@ -828,8 +828,8 @@ def text_to_speech_or(text, output_path):
         response = sarvam_client.text_to_speech.convert(
             text=text,
             target_language_code="od-IN",
-            speaker="roopa",
-            pace=1.1,
+            speaker="ritu",
+            pace=1.2,
             speech_sample_rate=22050,
             enable_preprocessing=True,
             model="bulbul:v3"

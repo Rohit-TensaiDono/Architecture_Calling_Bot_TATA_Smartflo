@@ -50,6 +50,21 @@ def play_audio(file_path):
     except Exception as e:
         print("❌ Playback error:", e)
 
+def process_audio_bytes(session, wav_data):
+    mulaw = audio_converter.wav_to_mulaw(wav_data)
+    user_text = transcribe_mulaw(mulaw)
+
+    if not user_text:
+        return None
+
+    response = handle_user_input(session, user_text)
+
+    return {
+        "user_text": user_text,
+        "bot_text": response["text"],
+        "audio_path": response["audio_path"]
+    }
+
 
 def main():
     session = {

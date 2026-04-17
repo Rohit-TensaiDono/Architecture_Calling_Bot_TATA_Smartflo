@@ -39,8 +39,8 @@ for text, output_path in texts_to_generate.items():
         response = client.text_to_speech.convert(
             text=text,
             target_language_code="od-IN",  # ✅ already correct
-            speaker="roopa",
-            pace=1.1,
+            speaker="ritu",
+            pace=1.13,
             speech_sample_rate=22050,
             enable_preprocessing=True,
             model="bulbul:v3"
