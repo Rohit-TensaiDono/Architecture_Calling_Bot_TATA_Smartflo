@@ -45,16 +45,32 @@ def step():
 
     session = sessions[session_id]
 
-    # 🚨 HARD STOP (MOST IMPORTANT FIX)
+    # 🚨 HARD STOP
     if session.get("state") in ("STATE_6", "ENDED"):
-        print(f"[INFO] Ignoring request — session ended ({session_id})")
-
         return jsonify({
             "session_id": session_id,
             "end": True
         })
 
     try:
+        # 🔥 FIRST CALL (NO AUDIO → GREETING)
+        if not audio_file:
+            response = handle_user_input(session, user_text=None)
+
+            bot_text = response.get("text", "")
+            audio_path = response.get("audio_path", "")
+            end_call = response.get("end", False)
+
+            bot_en = translate_to_english(bot_text)
+
+            return jsonify({
+                "session_id": session_id,
+                "bot_text": bot_text,
+                "bot_en": bot_en,
+                "audio": f"/audio?path={audio_path}",
+                "end": end_call
+            })
+
         audio_bytes = audio_file.read()
 
         # 🔒 ignore tiny audio
@@ -95,13 +111,12 @@ def step():
 
         bot_text = response.get("text", "")
         audio_path = response.get("audio_path", "")
-        end_call = response.get("end", False)  # ✅ FIXED
+        end_call = response.get("end", False)
 
         # → TRANSLATION
         user_en = translate_to_english(user_text)
         bot_en = translate_to_english(bot_text)
 
-        # 🚨 FINAL END GUARD
         if end_call:
             session["state"] = "ENDED"
 
@@ -117,7 +132,8 @@ def step():
 
     except Exception as e:
         print("❌ ERROR:", e)
-        return jsonify({"error": str(e)})   
+        return jsonify({"error": str(e)})
+
 
 @app.route("/audio")
 def serve_audio():

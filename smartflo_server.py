@@ -52,7 +52,7 @@ load_dotenv()
 # ---------------------------------------------------------------------------
 # Config from .env
 # ---------------------------------------------------------------------------
-SMARTFLO_API_URL   = os.getenv("SMARTFLO_API_URL",   "https://cloudphone.tatateleservices.com")
+SMARTFLO_API_URL   = os.getenv("SMARTFLO_API_URL",   "https://api-smartflo.tatateleservices.com/v1/click_to_call_support")
 # REST API uses /api prefix: /api/v1/click_to_call works; /v1/click_to_call returns HTML 404
 SMARTFLO_API_BASE  = os.getenv("SMARTFLO_API_BASE",  "/api")
 SMARTFLO_USERNAME  = os.getenv("SMARTFLO_USERNAME",  "")
@@ -124,50 +124,50 @@ def get_smartflo_token() -> str:
 
 def initiate_click_to_call(customer_number: str, caller_id: str | None = None) -> dict:
     """
-    Trigger an outbound call via SmartFlo Click-to-Call API.
-    POST /v1/click_to_call
+    FINAL: Uses SmartFlo click_to_call_support API (respects caller_id)
     """
-    token = get_smartflo_token()
-    if not token:
-        return {"success": False, "error": "Could not obtain SmartFlo auth token"}
 
-    # Normalise numbers -- strip leading '+' that SmartFlo doesn't accept
-    did = (caller_id or SMARTFLO_CALLER_ID).lstrip("+")
+    url = "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
+
+    # Normalize numbers
+    did = (caller_id or os.getenv("SMARTFLO_CALLER_ID", "")).lstrip("+")
     customer_number = customer_number.lstrip("+")
 
     payload = {
-        "agent_number":       did,           # DID / caller-ID shown to customer
-        "destination_number": customer_number,
+        "async": 1,
+        "customer_number": customer_number,
+        "customer_ring_timeout": 15,
+        "caller_id": did,
+        "api_key": os.getenv("SMARTFLO_API_KEY")
     }
 
-    print(f"[SmartFlo] Initiating Click-to-Call: agent={did} -> customer={customer_number}")
+    headers = {
+        "accept": "application/json",
+        "content-type": "application/json"
+    }
+
+    print(f"[NEW API] Calling from {did} → {customer_number}")
+
     try:
-        resp = requests.post(
-            f"{SMARTFLO_API_URL}{SMARTFLO_API_BASE}/v1/click_to_call",
-            json=payload,
-            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
-            timeout=15,
-        )
-        raw = resp.text.strip()
-        print(f"[SmartFlo] Click-to-Call response ({resp.status_code}): {raw[:200]}")
+        resp = requests.post(url, json=payload, headers=headers, timeout=15)
 
-        # SmartFlo may return an empty body on success (2xx) or on some errors
-        if not raw:
-            if resp.ok:
-                return {"success": True,  "status_code": resp.status_code, "data": {"message": "Call initiated (empty response)"}}
-            else:
-                return {"success": False, "status_code": resp.status_code, "error": f"HTTP {resp.status_code} with empty body"}
+        print(f"[NEW API] Status: {resp.status_code}")
+        print(f"[NEW API] Response: {resp.text}")
 
-        # Try JSON parse; fall back to raw text
+        # Safe JSON parsing
         try:
             data = resp.json()
         except Exception:
-            data = {"raw": raw}
+            data = {"raw": resp.text}
 
-        return {"success": resp.ok, "status_code": resp.status_code, "data": data}
+        return {
+            "success": resp.ok,
+            "status_code": resp.status_code,
+            "data": data
+        }
 
     except Exception as e:
-        print(f"[SmartFlo] Click-to-Call error: {e}")
+        print(f"[NEW API] Error: {e}")
         return {"success": False, "error": str(e)}
 
 
@@ -259,8 +259,10 @@ def tts_to_mulaw(text: str) -> bytes:
     # 2. Dynamic TTS generation (Sarvam AI)
     import tempfile, os as _os
     tmp_wav = tempfile.mktemp(suffix=".wav")
+    print("TTS TEXT:", text)
+    print("USING PRE-RECORDED:", bool(get_pre_recorded_mulaw(text)))
     try:
-        bot_module.text_to_speech_hi(text, tmp_wav)
+        bot_module.text_to_speech_or(text, tmp_wav)
         with open(tmp_wav, "rb") as f:
             wav_bytes = f.read()
         mulaw_data = audio_converter.wav_to_mulaw(wav_bytes)
@@ -558,7 +560,7 @@ async def start_call_test():
     else:
         audio_file = f"static/intro_{session_id}.wav"
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, bot_module.text_to_speech_hi, bot_reply, audio_file)
+        await loop.run_in_executor(None, bot_module.text_to_speech_or, bot_reply, audio_file)
         audio_url = f"/{audio_file}"
 
     return {
@@ -651,7 +653,7 @@ async def webhook_test(
     else:
         bot_audio_path = f"static/reply_{session_id}.wav"
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, bot_module.text_to_speech_hi, bot_reply, bot_audio_path)
+        await loop.run_in_executor(None, bot_module.text_to_speech_or, bot_reply, bot_audio_path)
         audio_url = f"/{bot_audio_path}"
     
     return {
@@ -815,7 +817,7 @@ async def smartflo_ws(websocket: WebSocket):
                             # Re-ask using RETRY_PREFIX + current-state retry question
                             current_state = bot_module.sessions.get(session_id, {}).get("state", "STATE_1")
                             retry_q = bot_module.RETRY_QUESTIONS.get(current_state, "")
-                            retry_msg = bot_module.RETRY_PREFIX + retry_q if retry_q else bot_module.RETRY_PREFIX + "कृपया दोबारा बोलें।"
+                            retry_msg = bot_module.RETRY_PREFIX + retry_q if retry_q else bot_module.RETRY_PREFIX + "ଦୟାକରି ପୁନର୍ବାର କହନ୍ତୁ।"
                             print(f"[SmartFlo] Retry {no_speech}/{bot_module.MAX_NO_SPEECH}: {retry_msg[:50]}…")
                             await send_audio_to_smartflo(websocket, stream_sid, retry_msg, bot_speaking, session_id)
                         continue
@@ -891,6 +893,14 @@ async def smartflo_ws(websocket: WebSocket):
             pass
         print("[SmartFlo] Session cleaned up")
 
+@app.post("/webhook/call")
+async def smartflo_webhook(request: Request):
+    data = await request.json()
+
+    print("\n📞 SMARTFLO WEBHOOK HIT (ODIA BOT):")
+    print(data)
+
+    return {"status": "received"}
 
 # ---------------------------------------------------------------------------
 # Entry point
