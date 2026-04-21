@@ -3,309 +3,230 @@ import requests
 import os
 import json
 import base64
-import uuid
 import asyncio
-import audioop
-import wave
-import io
 
 from fastapi import FastAPI, Request, WebSocket
-from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from solar_webhook import handle_user_input
 from smartflo_server import transcribe_mulaw
+from smartflo_audio import audio_converter
 
 app = FastAPI()
 
-# 🔴 UPDATE EVERY TIME NGROK RESTARTS
-BASE_URL = "https://yard-ladies-nuclei.ngrok-free.dev"
+BASE_URL = os.getenv("BASE_URL", "https://your-ngrok-url")
 
-SMARTFLO_API_KEY = os.getenv("SMARTFLO_API_KEY", "YOUR_API_KEY")
-SMARTFLO_CALLER_ID = os.getenv("SMARTFLO_CALLER_ID", "918065264108")
+SMARTFLO_API_KEY = os.getenv("SMARTFLO_API_KEY")
+SMARTFLO_CALLER_ID = os.getenv("SMARTFLO_CALLER_ID")
 
 SMARTFLO_URL = "https://api-smartflo.tatateleservices.com/v1/click_to_call_support"
 
 sessions = {}
 
-def wav_to_mulaw(wav_bytes):
-    with wave.open(io.BytesIO(wav_bytes), 'rb') as wf:
-        n_channels = wf.getnchannels()
-        sampwidth = wf.getsampwidth()
-        framerate = wf.getframerate()
-        pcm_data = wf.readframes(wf.getnframes())
-
-    # 🔁 Convert to mono if needed
-    if n_channels > 1:
-        pcm_data = audioop.tomono(pcm_data, sampwidth, 1, 1)
-
-    # 🔁 Resample to 8000 Hz if needed
-    if framerate != 8000:
-        pcm_data, _ = audioop.ratecv(
-            pcm_data, sampwidth, 1, framerate, 8000, None
-        )
-
-    # 🔁 Convert PCM → μ-law
-    mulaw_data = audioop.lin2ulaw(pcm_data, sampwidth)
-
-    return mulaw_data
-
 # =========================
-# 📞 OUTBOUND CALL TRIGGER
+# 📞 CALL TRIGGER
 # =========================
 @app.post("/call")
 async def trigger_call(request: Request):
-    try:
-        data = await request.json()
-        number = data.get("number")
+    data = await request.json()
+    number = data.get("number")
 
-        if not number:
-            return JSONResponse({"error": "number required"}, status_code=400)
+    if not number:
+        return {"error": "number required"}
 
-        payload = {
-            "async": 1,
-            "customer_number": number,
-            "customer_ring_timeout": 15,
-            "caller_id": SMARTFLO_CALLER_ID,
-            "api_key": SMARTFLO_API_KEY
-        }
+    payload = {
+        "async": 1,
+        "customer_number": number,
+        "customer_ring_timeout": 15,
+        "caller_id": SMARTFLO_CALLER_ID,
+        "api_key": SMARTFLO_API_KEY
+    }
 
-        headers = {
-            "accept": "application/json",
-            "content-type": "application/json"
-        }
-
-        print(f"📞 Calling: {number}")
-
-        response = requests.post(SMARTFLO_URL, json=payload, headers=headers)
-
-        print("📞 Smartflo Response:", response.text)
-
-        return response.json()
-
-    except Exception as e:
-        print("❌ CALL ERROR:", e)
-        return {"error": str(e)}
+    response = requests.post(SMARTFLO_URL, json=payload)
+    return response.json()
 
 
 # =========================
-# 🎤 WEBHOOK (LEGACY / TEST)
-# =========================
-@app.post("/webhook")
-async def webhook(request: Request):
-    print("🔥 WEBHOOK HIT")
-
-    try:
-        form = await request.form()
-        files = form
-
-        session_id = form.get("call_id") or str(uuid.uuid4())
-
-        if session_id not in sessions:
-            sessions[session_id] = {
-                "state": "STATE_1",
-                "retries": 0,
-                "data": {}
-            }
-
-        session = sessions[session_id]
-
-        # FIRST CALL (NO AUDIO)
-        if "audio" not in files:
-            response = handle_user_input(session, None)
-
-            audio_path = response.get("audio_path", "")
-            return {
-                "audio": f"{BASE_URL}/{audio_path}",
-                "end": response.get("end", False)
-            }
-
-        # AUDIO RECEIVED
-        audio_bytes = await files["audio"].read()
-
-        user_text = transcribe_mulaw(audio_bytes)
-        print("[USER]:", user_text)
-
-        if not user_text or len(user_text.strip()) < 2:
-            return {
-                "audio": f"{BASE_URL}/static/pre_audio/NO_SPEECH_RETRY.wav",
-                "end": False
-            }
-
-        response = handle_user_input(session, user_text)
-
-        if response.get("end"):
-            session["state"] = "ENDED"
-
-        return {
-            "audio": f"{BASE_URL}/{response.get('audio_path')}",
-            "end": response.get("end", False)
-        }
-
-    except Exception as e:
-        print("❌ ERROR:", e)
-        return {"error": str(e)}
-
-
-# =========================
-# 🔊 STATIC FILES
+# STATIC
 # =========================
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
 # =========================
-# 🔁 WEBSOCKET STREAMING
+# WEBSOCKET
 # =========================
 @app.websocket("/ws/tata-tele")
 async def tata_tele_ws(websocket: WebSocket):
     await websocket.accept()
-    print("🔗 Smartflo connected (streaming)")
-
-    session_id = str(uuid.uuid4())
-    session = {
-        "state": "STATE_1",
-        "retries": 0,
-        "data": {}
-    }
+    print("🔗 Smartflo connected")
 
     stream_sid = None
-    buffer = b""
+    session_id = None
+
     bot_speaking = False
+    listening_enabled = False
+    is_processing = False
 
-    async def process_audio(audio_buffer):
-        nonlocal bot_speaking
+    buffer = b""
+    last_process_time = 0
 
-        user_text = transcribe_mulaw(audio_buffer)
-        print("🗣 USER:", user_text)
-
-        if not user_text or len(user_text.strip()) < 2:
-            return
-
-        # limit garbage repetition
-        user_text = " ".join(user_text.split()[:10])
-
-        response = handle_user_input(session, user_text)
-        audio_path = response.get("audio_path")
-
-        if not audio_path or not stream_sid:
-            return
+    async def send_audio(text, final=False):
+        nonlocal bot_speaking, listening_enabled
 
         bot_speaking = True
+        listening_enabled = False
 
-        with open(audio_path, "rb") as f:
-            wav_bytes = f.read()
+        try:
+            response = handle_user_input(
+                sessions[session_id],
+                None if text == "__GREETING__" else text
+            )
 
-        mulaw_audio = wav_to_mulaw(wav_bytes)
+            audio_path = response.get("audio_path")
 
-        print("🔊 TTS bytes:", len(mulaw_audio))
+            if not audio_path:
+                return
 
-        # 🔥 reduce silence (IMPORTANT)
-        mulaw_audio = (b"\xff" * 2000) + mulaw_audio
+            with open(audio_path, "rb") as f:
+                wav_bytes = f.read()
 
-        chunk_size = 160  # 20ms
+            mulaw_audio = audio_converter.wav_to_mulaw(wav_bytes)
 
-        for i in range(0, len(mulaw_audio), chunk_size):
-            chunk = mulaw_audio[i:i + chunk_size]
+            mulaw_audio = (b"\xff" * 1500) + mulaw_audio
+            chunk_size = 1600
 
-            msg_out = {
-                "event": "media",
-                "streamSid": stream_sid,
-                "media": {
-                    "payload": base64.b64encode(chunk).decode()
+            for i in range(0, len(mulaw_audio), chunk_size):
+                chunk = mulaw_audio[i:i + chunk_size]
+
+                msg = {
+                    "event": "media",
+                    "streamSid": stream_sid,
+                    "media": {
+                        "payload": base64.b64encode(chunk).decode()
+                    }
                 }
-            }
 
-            await websocket.send_text(json.dumps(msg_out))
-            await asyncio.sleep(0.02)
+                await websocket.send_text(json.dumps(msg))
 
-        print("🔊 Sent response audio")
+                try:
+                    await asyncio.wait_for(websocket.receive(), timeout=0.01)
+                except:
+                    pass
 
-        bot_speaking = False
+            # allow playback to finish
+            await asyncio.sleep(len(mulaw_audio) / 8000 + 0.4)
+
+        finally:
+            bot_speaking = False
+            listening_enabled = True   # 🔥 ONLY NOW we listen
 
     try:
         while True:
             msg = await websocket.receive()
 
-            if msg["type"] == "websocket.disconnect":
-                print("📴 Client disconnected")
-                break
-
-            if "text" not in msg or not msg["text"]:
+            if "text" not in msg:
                 continue
 
             data = json.loads(msg["text"])
             event = data.get("event")
 
-            print("📩 EVENT:", event)
-
+            # ================= START =================
             if event == "start":
-                stream_sid = data["streamSid"]
-                print("📞 Call started:", stream_sid)
+                start_data = data.get("start", {})
+                stream_sid = start_data.get("streamSid")
+                session_id = stream_sid
 
-                # 🔥 SEND GREETING IMMEDIATELY
-                response = handle_user_input(session, None)
-                audio_path = response.get("audio_path")
+                customer_number = (
+                    start_data.get("to")
+                    or start_data.get("from")
+                    or "unknown"
+                )
 
-                if audio_path:
-                    bot_speaking = True
+                print(f"📞 Call started | {customer_number}")
 
-                    with open(audio_path, "rb") as f:
-                        wav_bytes = f.read()
+                sessions[session_id] = {
+                    "state": "STATE_1",
+                    "data": {},
+                    "number": customer_number
+                }
 
-                    mulaw_audio = wav_to_mulaw(wav_bytes)
+                await send_audio("__GREETING__")
+                continue
 
-                    print("🔊 Greeting TTS bytes:", len(mulaw_audio))
+            # ================= MEDIA =================
+            if event == "media":
 
-                    # small silence to prevent clipping
-                    mulaw_audio = (b"\xff" * 2000) + mulaw_audio
+                # 🔥 HARD CONTROL
+                if not listening_enabled or bot_speaking or is_processing:
+                    continue
 
-                    chunk_size = 160
+                payload = data["media"].get("payload")
+                if not payload:
+                    continue
 
-                    for i in range(0, len(mulaw_audio), chunk_size):
-                        chunk = mulaw_audio[i:i + chunk_size]
+                audio_chunk = base64.b64decode(payload)
+                buffer += audio_chunk
 
-                        msg_out = {
-                            "event": "media",
-                            "streamSid": stream_sid,
-                            "media": {
-                                "payload": base64.b64encode(chunk).decode()
-                            }
-                        }
+                now = asyncio.get_event_loop().time()
 
-                        await websocket.send_text(json.dumps(msg_out))
-                        await asyncio.sleep(0.02)
+                # 🔥 TIME + COOLDOWN CONTROL
+                if len(buffer) > 2000 and (now - last_process_time) > 1.2:
+                    temp = buffer
+                    buffer = b""
+                    last_process_time = now
 
-                    print("🔊 Sent greeting audio")
+                    is_processing = True
+                    listening_enabled = False  # stop listening while processing
 
-                    bot_speaking = False
+                    try:
+                        loop = asyncio.get_event_loop()
+
+                        user_text = await loop.run_in_executor(
+                            None, transcribe_mulaw, temp
+                        )
+
+                        print("🗣 USER:", user_text)
+
+                        # 🔥 ignore noise / fragments
+                        if not user_text or len(user_text.split()) < 2:
+                            print("⚠️ Ignoring short/empty input")
+                            listening_enabled = True
+                            continue
+
+                        response = handle_user_input(sessions[session_id], user_text)
+
+                        bot_text = response.get("text", "")
+                        is_end = response.get("end", False)
+
+                        await send_audio(bot_text, final=is_end)
+
+                        if is_end:
+                            print("📴 Ending call")
+                            await websocket.close()
+                            break
+
+                    finally:
+                        is_processing = False
 
                 continue
 
-            if event == "media":
-
-                # 🔇 HARD echo suppression
-                if bot_speaking:
-                    buffer = b""
-                    continue
-
-                payload = data["media"]["payload"]
-                audio_chunk = base64.b64decode(payload)
-
-                buffer += audio_chunk
-
-                # 🔥 reduce buffer (LOW LATENCY)
-                if len(buffer) >= 4000:
-                    temp = buffer
-                    buffer = b""
-
-                    asyncio.create_task(process_audio(temp))
-
+            # ================= STOP =================
             if event == "stop":
-                print("📴 Call ended")
+                print("📴 Call stopped")
                 break
 
     except Exception as e:
-        print("❌ WebSocket Error:", e)
+        print("❌ WS ERROR:", e)
 
+    finally:
+        try:
+            await websocket.close()
+        except:
+            pass
+
+        if session_id in sessions:
+            del sessions[session_id]
+
+        print("🧹 Session cleaned")
 
 
