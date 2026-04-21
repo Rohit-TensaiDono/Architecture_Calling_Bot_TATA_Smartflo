@@ -172,11 +172,60 @@ async def tata_tele_ws(websocket: WebSocket):
     buffer = b""
     bot_speaking = False
 
+    async def process_audio(audio_buffer):
+        nonlocal bot_speaking
+
+        user_text = transcribe_mulaw(audio_buffer)
+        print("🗣 USER:", user_text)
+
+        if not user_text or len(user_text.strip()) < 2:
+            return
+
+        # limit garbage repetition
+        user_text = " ".join(user_text.split()[:10])
+
+        response = handle_user_input(session, user_text)
+        audio_path = response.get("audio_path")
+
+        if not audio_path or not stream_sid:
+            return
+
+        bot_speaking = True
+
+        with open(audio_path, "rb") as f:
+            wav_bytes = f.read()
+
+        mulaw_audio = wav_to_mulaw(wav_bytes)
+
+        print("🔊 TTS bytes:", len(mulaw_audio))
+
+        # 🔥 reduce silence (IMPORTANT)
+        mulaw_audio = (b"\xff" * 2000) + mulaw_audio
+
+        chunk_size = 160  # 20ms
+
+        for i in range(0, len(mulaw_audio), chunk_size):
+            chunk = mulaw_audio[i:i + chunk_size]
+
+            msg_out = {
+                "event": "media",
+                "streamSid": stream_sid,
+                "media": {
+                    "payload": base64.b64encode(chunk).decode()
+                }
+            }
+
+            await websocket.send_text(json.dumps(msg_out))
+            await asyncio.sleep(0.02)
+
+        print("🔊 Sent response audio")
+
+        bot_speaking = False
+
     try:
         while True:
             msg = await websocket.receive()
 
-            # 🔴 Disconnect
             if msg["type"] == "websocket.disconnect":
                 print("📴 Client disconnected")
                 break
@@ -189,97 +238,74 @@ async def tata_tele_ws(websocket: WebSocket):
 
             print("📩 EVENT:", event)
 
-            # =========================
-            # CONNECT
-            # =========================
-            if event == "connected":
-                continue
-
-            # =========================
-            # START
-            # =========================
             if event == "start":
                 stream_sid = data["streamSid"]
                 print("📞 Call started:", stream_sid)
+
+                # 🔥 SEND GREETING IMMEDIATELY
+                response = handle_user_input(session, None)
+                audio_path = response.get("audio_path")
+
+                if audio_path:
+                    bot_speaking = True
+
+                    with open(audio_path, "rb") as f:
+                        wav_bytes = f.read()
+
+                    mulaw_audio = wav_to_mulaw(wav_bytes)
+
+                    print("🔊 Greeting TTS bytes:", len(mulaw_audio))
+
+                    # small silence to prevent clipping
+                    mulaw_audio = (b"\xff" * 2000) + mulaw_audio
+
+                    chunk_size = 160
+
+                    for i in range(0, len(mulaw_audio), chunk_size):
+                        chunk = mulaw_audio[i:i + chunk_size]
+
+                        msg_out = {
+                            "event": "media",
+                            "streamSid": stream_sid,
+                            "media": {
+                                "payload": base64.b64encode(chunk).decode()
+                            }
+                        }
+
+                        await websocket.send_text(json.dumps(msg_out))
+                        await asyncio.sleep(0.02)
+
+                    print("🔊 Sent greeting audio")
+
+                    bot_speaking = False
+
                 continue
 
-            # =========================
-            # MEDIA (AUDIO IN)
-            # =========================
             if event == "media":
 
-                # 🔇 Ignore mic while bot is speaking
+                # 🔇 HARD echo suppression
                 if bot_speaking:
+                    buffer = b""
                     continue
 
                 payload = data["media"]["payload"]
                 audio_chunk = base64.b64decode(payload)
 
-                print("🎧 chunk:", len(audio_chunk))
-
                 buffer += audio_chunk
 
-                # 🔁 ~1 sec audio
-                if len(buffer) >= 8000:
-                    user_text = transcribe_mulaw(buffer)
-                    print("🗣 USER:", user_text)
-
+                # 🔥 reduce buffer (LOW LATENCY)
+                if len(buffer) >= 4000:
+                    temp = buffer
                     buffer = b""
 
-                    if not user_text or len(user_text.strip()) < 2:
-                        continue
+                    asyncio.create_task(process_audio(temp))
 
-                    # 🤖 BOT RESPONSE
-                    response = handle_user_input(session, user_text)
-                    audio_path = response.get("audio_path")
-
-                    if audio_path and stream_sid:
-                        bot_speaking = True
-
-                        with open(audio_path, "rb") as f:
-                            wav_bytes = f.read()
-
-                        # 🔥 Convert WAV → μ-law 8kHz
-                        mulaw_audio = wav_to_mulaw(wav_bytes)
-
-                        print("🔊 TTS bytes:", len(mulaw_audio))
-
-                        # 🔇 Add initial silence (prevents clipping)
-                        mulaw_audio = (b"\xff" * 8000) + mulaw_audio
-
-                        # 🔁 Send in 20ms frames (160 bytes)
-                        chunk_size = 160
-
-                        for i in range(0, len(mulaw_audio), chunk_size):
-                            chunk = mulaw_audio[i:i + chunk_size]
-
-                            msg_out = {
-                                "event": "media",
-                                "streamSid": stream_sid,
-                                "media": {
-                                    "payload": base64.b64encode(chunk).decode()
-                                }
-                            }
-
-                            await websocket.send_text(json.dumps(msg_out))
-                            await asyncio.sleep(0.02)  # 🔥 REAL-TIME pacing
-
-                        print("🔊 Sent response audio")
-
-                        bot_speaking = False
-
-                    if response.get("end"):
-                        print("🔚 Ending session")
-                        await asyncio.sleep(2)  # allow playback to finish
-                        break
-
-            # =========================
-            # STOP
-            # =========================
             if event == "stop":
-                print("📴 Call ended by Smartflo")
+                print("📴 Call ended")
                 break
 
     except Exception as e:
         print("❌ WebSocket Error:", e)
+
+
 
