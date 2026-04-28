@@ -4,7 +4,7 @@ name: Deploy API to EC2 via ECR repo
 on:
   push:
     branches:
-      - dev-odia
+      - telugu-flow
 
 jobs:
   deploy:
@@ -27,7 +27,7 @@ jobs:
 
       - name: Build and Push Docker Image
         run: |
-          IMAGE_TAG=voicebotodia
+          IMAGE_TAG=tuluvoicebot
           docker build -t ${{ secrets.AWS_ECR_REGISTRY }}:$IMAGE_TAG .
           docker push ${{ secrets.AWS_ECR_REGISTRY }}:$IMAGE_TAG
 
@@ -37,8 +37,8 @@ jobs:
           chmod 600 ec2_key.pem  # Set correct permissions for the SSH key
 
           ssh -o StrictHostKeyChecking=no -i ec2_key.pem ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
-            IMAGE_TAG=voicebotodia  # Ensure same tag is used
+            IMAGE_TAG=tuluvoicebot  # Ensure same tag is used
             
             # Run deployment script
-            sudo chmod +x /home/ubuntu/scripts/voicebotodia.sh
-            sh /home/ubuntu/scripts/voicebotodia.sh
+            sudo chmod +x /home/ubuntu/scripts/tuluvoicebot.sh
+            sh /home/ubuntu/scripts/tuluvoicebot.sh
