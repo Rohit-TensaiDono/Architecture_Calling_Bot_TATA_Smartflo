@@ -217,7 +217,7 @@ def transcribe_mulaw(mulaw_data: bytes) -> str:
         response = _sarvam_client.speech_to_text.transcribe(
             file=("audio.wav", io.BytesIO(wav_bytes)),
             model="saaras:v3",
-            language_code="od-IN",
+            language_code="te-IN",
         )
         text = (response.transcript or "").strip()
         if text:
@@ -232,7 +232,7 @@ def transcribe_mulaw(mulaw_data: bytes) -> str:
         import io
         with sr.AudioFile(io.BytesIO(wav_bytes)) as src:
             audio_data = _recognizer.record(src)
-        text = _recognizer.recognize_google(audio_data, language="or-IN")
+        text = _recognizer.recognize_google(audio_data, language="te-IN")
         print(f"[Google STT Fallback] '{text}'")
         return text
     except sr.UnknownValueError:
@@ -262,7 +262,7 @@ def tts_to_mulaw(text: str) -> bytes:
     print("TTS TEXT:", text)
     print("USING PRE-RECORDED:", bool(get_pre_recorded_mulaw(text)))
     try:
-        bot_module.text_to_speech_or(text, tmp_wav)
+        bot_module.text_to_speech_te(text, tmp_wav)
         with open(tmp_wav, "rb") as f:
             wav_bytes = f.read()
         mulaw_data = audio_converter.wav_to_mulaw(wav_bytes)
@@ -560,7 +560,7 @@ async def start_call_test():
     else:
         audio_file = f"static/intro_{session_id}.wav"
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, bot_module.text_to_speech_or, bot_reply, audio_file)
+        await loop.run_in_executor(None, bot_module.text_to_speech_te, bot_reply, audio_file)
         audio_url = f"/{audio_file}"
 
     return {
@@ -607,7 +607,7 @@ async def webhook_test(
             response = _sarvam_client.speech_to_text.transcribe(
                 file=("audio.wav", io.BytesIO(wav_bytes)),
                 model="saaras:v3",
-                language_code="od-IN",
+                language_code="te-IN",
             )
             user_text = (response.transcript or "").strip()
             if user_text:
@@ -622,7 +622,7 @@ async def webhook_test(
                 r = sr.Recognizer()
                 with sr.AudioFile(wav_path) as source:
                     audio_data = r.record(source)
-                user_text = r.recognize_google(audio_data, language="or-IN")
+                user_text = r.recognize_google(audio_data, language="te-IN")
                 print(f"[Browser Test] Google STT fallback: '{user_text}'")
             except Exception as e2:
                 print(f"[Browser Test] Google STT fallback error: {e2}")
@@ -653,7 +653,7 @@ async def webhook_test(
     else:
         bot_audio_path = f"static/reply_{session_id}.wav"
         loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, bot_module.text_to_speech_or, bot_reply, bot_audio_path)
+        await loop.run_in_executor(None, bot_module.text_to_speech_te, bot_reply, bot_audio_path)
         audio_url = f"/{bot_audio_path}"
     
     return {
@@ -817,7 +817,7 @@ async def smartflo_ws(websocket: WebSocket):
                             # Re-ask using RETRY_PREFIX + current-state retry question
                             current_state = bot_module.sessions.get(session_id, {}).get("state", "STATE_1")
                             retry_q = bot_module.RETRY_QUESTIONS.get(current_state, "")
-                            retry_msg = bot_module.RETRY_PREFIX + retry_q if retry_q else bot_module.RETRY_PREFIX + "ଦୟାକରି ପୁନର୍ବାର କହନ୍ତୁ।"
+                            retry_msg = bot_module.RETRY_PREFIX + retry_q if retry_q else bot_module.RETRY_PREFIX + "దయచేసి మళ్లీ చెప్పండి."
                             print(f"[SmartFlo] Retry {no_speech}/{bot_module.MAX_NO_SPEECH}: {retry_msg[:50]}…")
                             await send_audio_to_smartflo(websocket, stream_sid, retry_msg, bot_speaking, session_id)
                         continue
@@ -897,7 +897,7 @@ async def smartflo_ws(websocket: WebSocket):
 async def smartflo_webhook(request: Request):
     data = await request.json()
 
-    print("\n📞 SMARTFLO WEBHOOK HIT (ODIA BOT):")
+    print("\n📞 SMARTFLO WEBHOOK HIT (Telugu BOT):")
     print(data)
 
     return {"status": "received"}

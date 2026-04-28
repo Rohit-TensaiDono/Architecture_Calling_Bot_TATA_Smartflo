@@ -18,7 +18,7 @@ texts_to_generate = {
     solar_webhook.NO_SPEECH_END: "static/pre_audio/NO_SPEECH_END.wav",
 
     # ✅ FIXED: Hindi → Odia
-    solar_webhook.RETRY_PREFIX + "ଦୟାକରି ପୁଣିଥରେ କହନ୍ତୁ।": "static/pre_audio/NO_SPEECH_RETRY.wav"
+    solar_webhook.RETRY_PREFIX + "దయచేసి మళ్లీ చెప్పండి.": "static/pre_audio/NO_SPEECH_RETRY.wav"
 }
 
 # Add state retries
@@ -38,9 +38,9 @@ for text, output_path in texts_to_generate.items():
     try:
         response = client.text_to_speech.convert(
             text=text,
-            target_language_code="od-IN",  # ✅ already correct
+            target_language_code="te-IN", 
             speaker="ritu",
-            pace=1.13,
+            pace=1.1,
             speech_sample_rate=22050,
             enable_preprocessing=True,
             model="bulbul:v3"

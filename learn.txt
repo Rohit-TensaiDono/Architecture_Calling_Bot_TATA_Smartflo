@@ -1,1 +1,0 @@
-run command : python solar_webhook.py 

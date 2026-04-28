@@ -74,57 +74,68 @@ sessions = {}
 # ── State Texts ───────────────────────────────────────────────────────────────
 
 STATE_1_GREETING = (
-    "ନମସ୍କାର! ମୁଁ Mierae Solar ରୁ ଦୀପ୍ତି କହୁଛି। "
-    "ଆପଣ ନିଜ ଘରେ ସୋଲାର ଲଗାଇ ଏକ ଲକ୍ଷ ଅଠତିରିଶି ହଜାର ଟଙ୍କା ପର୍ଯ୍ୟନ୍ତ ସରକାରୀ ସବସିଡି ପାଇପାରିବେ, "
-    "ଏବଂ ପ୍ରତିମାସ ଚାରି ହଜାର ଟଙ୍କା ପର୍ଯ୍ୟନ୍ତ ବିଦ୍ୟୁତ ବିଲ୍ ବଞ୍ଚାଇପାରିବେ। "
-    "ଆପଣ ସୋଲାର ବିଷୟରେ ମାଗଣା ସୂଚନା ନେବାକୁ ଇଚ୍ଛା କରିବେ କି?"
+    "నమస్కారం! నేను మీరై సోలార్ నుండి దీప్తి మాట్లాడుతున్నాను. "
+    "మీరు మీ ఇంట్లో సోలార్ ఏర్పాటు చేసుకుని డెబ్బై ఎనిమిది వేల రూపాయలు వరకు ప్రభుత్వ సబ్సిడీ పొందవచ్చు, "
+    "మరియు ప్రతి నెల నాలుగు వేల రూపాయలు వరకు విద్యుత్ బిల్లును ఆదా చేసుకోవచ్చు. "
+    "మీరు సోలార్ గురించి ఉచిత సమాచారం పొందాలనుకుంటున్నారా?"
 )
 
 STATE_1_NO_END = (
-    "କିଛି ନୁହେଁ! ଯଦି ଆପଣ ପରେ ସୋଲାର ବିଷୟରେ ଜାଣିବାକୁ ଚାହାନ୍ତି, "
-    "ତେବେ ଏହି ନମ୍ବରରେ ଆମକୁ କଲ୍ କରନ୍ତୁ। "
-    "ଧନ୍ୟବାଦ! ଆପଣଙ୍କ ଦିନଟି ଭଲ କଟୁ"
+    "పర్లేదు! మీరు తర్వాత సోలార్ గురించి తెలుసుకోవాలనుకుంటే, "
+    "దయచేసి ఈ నంబర్‌కు కాల్ చేయండి. "
+    "ధన్యవాదాలు! మీ రోజు మంచిగా గడవాలి."
 )
 
 STATE_2_PROPERTY = (
-    "ଆପଣଙ୍କ ପ୍ରୋପର୍ଟି କଣ ପ୍ରକାରର? "
-    "ସ୍ୱତନ୍ତ୍ର ଘର, ଆପାର୍ଟମେଣ୍ଟ, କିମ୍ବା ବ୍ୟବସାୟିକ ପ୍ରୋପର୍ଟି?"
+    "చాలా బాగుంది! ముందుగా చెప్పండి, మీ ప్రాపర్టీ ఏ రకం? "
+    "ఇది స్వంత ఇల్లు, అపార్ట్‌మెంట్ లేదా కమర్షియల్ ప్రాపర్టీనా?"
 )
 
 STATE_3_BILL = (
-    "ଆପଣଙ୍କ ମାସିକ ବିଦ୍ୟୁତ ବିଲ୍ କେତେ ଆସେ?"
+    "మీ నెలవారీ విద్యుత్ బిల్లు సాధారణంగా ఎంత వస్తుంది? "
+    "వెయ్యి నుంచి రెండు వేల మధ్యనా, "
+    "రెండు వేల నుంచి ఐదు వేల మధ్యనా, "
+    "లేదా ఐదు వేల కంటే ఎక్కువనా?"
 )
 
 STATE_4_TIMELINE = (
-    "ଆପଣ କେବେ ସୋଲାର ଇନ୍ସଟଲେସନ୍ କରିବାକୁ ଚାହୁଁଛନ୍ତି?"
+    "మీరు సోలార్ ఇన్‌స్టాలేషన్ ఎప్పటిలో చేయించుకోవాలని భావిస్తున్నారు? "
+    "ఒక నెలలోపలనా, ఒకటి నుంచి మూడు నెలల మధ్యనా, "
+    "లేదా ప్రస్తుతం కేవలం సమాచారం కోసం మాత్రమేనా?"
 )
 
 STATE_5_PAYMENT = (
-    "ଆପଣ କିପରି ପେମେଣ୍ଟ କରିବେ? ପୁରା ପେମେଣ୍ଟ କିମ୍ବା ବ୍ୟାଙ୍କ ଲୋନ୍?"
+    "మీరు చెల్లింపు ఎలా చేయాలనుకుంటున్నారు? "
+    "పూర్తి చెల్లింపు లేదా బ్యాంక్ లోన్ ద్వారా?"
 )
 
 STATE_6_CLOSING = (
-    "ଧନ୍ୟବାଦ! ଆମ ଟିମ୍ ଶୀଘ୍ର ଆପଣଙ୍କୁ ସମ୍ପର୍କ କରିବ।"
+    "ధన్యవాదాలు! మీ వివరాలు విజయవంతంగా నమోదు అయ్యాయి. "
+    "మా టీమ్ త్వరలోనే మీతో సంప్రదించి ఉచిత హోమ్ విజిట్‌ను షెడ్యూల్ చేస్తుంది. "
+    "ఈ విజిట్ సమయంలో, మా నిపుణులైన ఇంజనీర్ మీ ప్రాపర్టీని పరిశీలించి "
+    "మీకు సరైన సోలార్ పరిష్కారాన్ని సూచిస్తారు. "
+    "మీరై సోలార్ ను ఎంచుకున్నందుకు ధన్యవాదాలు! మీ రోజు మంచిగా గడవాలి."
 )
 
-STATE_DISCONNECT = "ଧନ୍ୟବାଦ। କଲ୍ ସମାପ୍ତ।"
+STATE_DISCONNECT = "ధన్యవాదాలు. కాల్ ముగిసింది."
 
 
 # ── Retry / Error Messages ────────────────────────────────────────────────────
 MAX_RETRIES = 3
 MAX_NO_SPEECH = 3
-RETRY_PREFIX = "ମୁଁ ଠିକ୍ ବୁଝିପାରିନି। "
 
-END_MISUNDERSTAND = "ଦୟାକରି ପରେ କଲ୍ କରନ୍ତୁ। ଧନ୍ୟବାଦ।"
+RETRY_PREFIX = "నేను సరిగ్గా అర్థం చేసుకోలేకపోయాను. "
 
-NO_SPEECH_END = "ଆପଣଙ୍କ ଆବାଜ ଆସୁନାହିଁ। ପରେ କଲ୍ କରନ୍ତୁ।"
+END_MISUNDERSTAND = "దయచేసి తరువాత మళ్లీ కాల్ చేయండి. ధన్యవాదాలు."
+
+NO_SPEECH_END = "మీ స్వరం వినిపించడం లేదు. దయచేసి తరువాత కాల్ చేయండి."
 
 RETRY_QUESTIONS = {
-    "STATE_1": "ଆପଣ ସୋଲାର ବିଷୟରେ ମାଗଣା ସୂଚନା ନେବାକୁ ଇଚ୍ଛା କରିବେ କି?",
-    "STATE_2": "ଆପଣଙ୍କ ପ୍ରୋପର୍ଟି କଣ ପ୍ରକାରର?",
-    "STATE_3": "ଆପଣଙ୍କ ବିଦ୍ୟୁତ ବିଲ୍ କେତେ ଆସେ?",
-    "STATE_4": "ଆପଣ କେବେ ସୋଲାର ଲଗାଇବେ?",
-    "STATE_5": "ପେମେଣ୍ଟ କିପରି କରିବେ?"
+    "STATE_1": "మీరు సోలార్ గురించి ఉచిత సమాచారం పొందాలనుకుంటున్నారా?",
+    "STATE_2": "మీ ప్రాపర్టీ ఏ రకం?",
+    "STATE_3": "మీ విద్యుత్ బిల్లు ఎంత వస్తుంది?",
+    "STATE_4": "మీరు సోలార్ ఎప్పుడు ఇన్‌స్టాల్ చేయించుకోవాలని అనుకుంటున్నారు?",
+    "STATE_5": "మీరు చెల్లింపు ఎలా చేయాలనుకుంటున్నారు?"
 }
 
 
@@ -142,7 +153,7 @@ PRE_RECORDED_AUDIO = {
     # Retry / Error pre-recordings
     END_MISUNDERSTAND: "static/pre_audio/END_MISUNDERSTAND.wav",
     NO_SPEECH_END:     "static/pre_audio/NO_SPEECH_END.wav",
-    RETRY_PREFIX + "कृपया दोबारा बोलें।": "static/pre_audio/NO_SPEECH_RETRY.wav",
+    RETRY_PREFIX + "దయచేసి మళ్లీ చెప్పండి.": "static/pre_audio/NO_SPEECH_RETRY.wav",
 }
 
 # Auto-add retry questions to pre-recorded mapping
@@ -157,41 +168,80 @@ for state_key, q_text in RETRY_QUESTIONS.items():
 def is_positive(text):
     text = text.lower().strip()
 
-    # ✅ DEFINE FIRST
+    # ── POSITIVE KEYWORDS ─────────────────────────────
     positives_exact = {
-        "yes", "haa", "ha", "haan", "ji", "ok", "okay", "sure",
-        "हाँ", "हां", "जी",
+        # English
+        "yes", "ok", "okay", "sure", "yeah", "yup", "yep", "fine", "alright",
+        "go ahead", "tell me", "please tell", "continue", "proceed", "do it",
+
+        # Hindi
+        "haa", "ha", "haan", "ji", "haanji", "theek", "ठीक", "ठीक है",
+        "हाँ", "हां", "जी", "बिल्कुल", "ज़रूर", "जरूर",
+        "बताओ", "बताइए", "कहिए", "समझाइए", "करो", "कीजिए",
 
         # Odia
-        "ହଁ", "ହାଁ", "ଠିକ୍", "ଚାହୁଁଛି",
+        "ହଁ", "ହାଁ", "ଠିକ୍", "ଠିକ", "ହଁ ଠିକ୍", "ଚାହୁଁଛି",
+        "କୁହ", "କୁହନ୍ତୁ", "କହ", "ବୁଝା", "କର", "କରନ୍ତୁ",
 
-        # conversational intent
-        "କୁହ", "କୁହନ୍ତୁ", "କହ", "ବୁଝା",
+        # Telugu
+        "అవును", "అవునండి", "సరే", "ఓకే", "ఓకే అండి",
+        "కావాలి", "చెప్పండి", "చెప్పు", "వివరించండి",
+        "చెప్పండి అండి", "మాట్లాడండి", "చెప్పండి ప్లీజ్",
+        "అవును చెప్పండి", "సరే చెప్పండి",
+
+        # Hinglish / mixed
+        "haan bolo", "haan batao", "ok bolo", "ok batao",
+        "bolo", "batao", "samjhao", "samjha do",
+        "haan ji bataiye", "haan ji boliye",
+        "ok tell me", "yes tell me", "yes please",
     }
-
+    
+    # ── NEGATIVE KEYWORDS ─────────────────────────────
     negatives_exact = {
-        "no", "nahi", "na", "नहीं", "ना",
-        "ନା", "ନାହିଁ"
+        # English
+        "no", "nope",
+
+        # Hindi
+        "nahi", "na", "नहीं", "ना",
+
+        # Odia
+        "ନା", "ନାହିଁ",
+
+        # Telugu
+        "కాదు", "వద్దు", "అవసరం లేదు"
     }
 
-    # ✅ THEN extend
+    # ── GREETING / NEUTRAL (treated as soft positive) ─
     positives_exact.update([
-        "ହ୍ୟାଲୋ", "ନମସ୍କାର", "କେମିତି", "କିଏ", "ଆଜ୍ଞା",
-        "hello", "hi"
+        # English
+        "hello", "hi",
+
+        # Hindi
+        "नमस्ते",
+
+        # Odia
+        "ନମସ୍କାର", "ହ୍ୟାଲୋ",
+
+        # Telugu
+        "నమస్కారం", "హలో"
     ])
 
-    # ── logic ──
+    # ── TOKEN CHECK ───────────────────────────────────
     words = text.split()
 
     has_positive = any(w in positives_exact for w in words)
     has_negative = any(w in negatives_exact for w in words)
 
+    # ── DECISION LOGIC ────────────────────────────────
     if has_negative and not has_positive:
         return False
+
     if has_positive:
         return True
 
+    # fallback: assume positive to keep conversation moving
     return True
+
 
 def _detect_property_type(text):
     """Returns 'independent', 'apartment', 'commercial', or None."""
@@ -215,7 +265,10 @@ def _detect_property_type(text):
         "ghar", "मकान", "घर", "kothi", "खुद का घर",
 
         # Odia
-        "ଘର", "ସ୍ୱତନ୍ତ୍ର", "ନିଜ ଘର", "ଭିଲା"
+        "ଘର", "ସ୍ୱତନ୍ତ୍ର", "ନିଜ ଘର", "ଭିଲା",
+
+        # Telugu
+        "ఇల్లు", "స్వంత ఇల్లు", "హౌస్", "విల్లా", "బంగ్లా"
     ]
 
     apartment_kw = [
@@ -226,7 +279,10 @@ def _detect_property_type(text):
         "अपार्टमेंट", "फ्लैट",
 
         # Odia
-        "ଆପାର୍ଟମେଣ୍ଟ", "ଫ୍ଲାଟ", "ବିଲ୍ଡିଂ"
+        "ଆପାର୍ଟମେଣ୍ଟ", "ଫ୍ଲାଟ", "ବିଲ୍ଡିଂ",
+
+        # Telugu
+        "అపార్ట్‌మెంట్", "ఫ్లాట్", "బిల్డింగ్", "సొసైటీ"
     ]
 
     commercial_kw = [
@@ -237,10 +293,13 @@ def _detect_property_type(text):
         "dukan", "दुकान", "ऑफिस",
 
         # Odia
-        "ଦୋକାନ", "ଅଫିସ", "କମର୍ସିଆଲ", "କାରଖାନା"
+        "ଦୋକାନ", "ଅଫିସ", "କମର୍ସିଆଲ", "କାରଖାନା",
+
+        # Telugu
+        "దుకాణం", "ఆఫీస్", "కమర్షియల్", "ఫ్యాక్టరీ", "గోదాం", "షోరూమ్"
     ]
 
-    # ── SCORING MATCH (better than first-match) ───────
+    # ── SCORING MATCH ────────────────────────────────
     scores = {
         "independent": 0,
         "apartment": 0,
@@ -265,12 +324,12 @@ def _detect_property_type(text):
     if scores[best] > 0:
         return best
 
-    # ── GEMINI FALLBACK ──────────────────────────────
+    # ── GEMINI FALLBACK (UPDATED FOR TELUGU) ──────────
     if gemini_model:
         try:
             resp = gemini_model.generate_content(
                 f"""
-User replied to property type question (English/Hindi/Odia): "{text}"
+User replied to property type question (English/Hindi/Odia/Telugu): "{text}"
 
 Classify:
 INDEPENDENT = own house
@@ -300,6 +359,7 @@ Reply ONLY: INDEPENDENT / APARTMENT / COMMERCIAL / UNCLEAR
 
     return None
 
+
 def _detect_bill_range(text):
     """Returns 'low' (1k-2k), 'mid' (2k-5k), 'high' (5k+), or None."""
     text_lower = text.lower().strip()
@@ -307,26 +367,30 @@ def _detect_bill_range(text):
     # ── NORMALIZE NUMBERS ─────────────────────────────
     text_clean = re.sub(r'(\d),(\d)', r'\1\2', text_lower)
 
-    # Handle "4k", "5k" etc.
+    # Handle "4k", "5k"
     text_clean = re.sub(r'(\d+)\s*k', lambda m: str(int(m.group(1)) * 1000), text_clean)
 
-    # Extract numeric values
-    nums = re.findall(r'\d+', text_clean)
+    # Handle ranges like "3000-4000"
+    range_match = re.findall(r'(\d+)\s*[-to]+\s*(\d+)', text_clean)
+    if range_match:
+        nums = [int(n) for pair in range_match for n in pair]
+    else:
+        nums = [int(n) for n in re.findall(r'\d+', text_clean)]
 
     if nums:
-        amount = int(nums[0])
-        if amount >= 5000:
+        avg_amount = sum(nums) // len(nums)
+
+        if avg_amount >= 5000:
             return "high"
-        elif amount >= 2000:
+        elif avg_amount >= 2000:
             return "mid"
-        elif amount >= 1000:
+        elif avg_amount >= 1000:
             return "low"
-        elif amount == 0:
+        elif avg_amount == 0:
             return "low"
 
     # ── KEYWORD MATCHING ─────────────────────────────
 
-    # HIGH (5000+)
     high_kw = [
         # English
         "high", "above 5000", "more than 5000",
@@ -336,10 +400,12 @@ def _detect_bill_range(text):
         "zyada", "ज़्यादा", "adhik", "अधिक",
 
         # Odia
-        "ପାଞ୍ଚ ହଜାର", "ଅଧିକ", "ବେଶି"
+        "ପାଞ୍ଚ ହଜାର", "ଅଧିକ", "ବେଶି",
+
+        # Telugu
+        "ఐదు వేల", "ఎక్కువ", "పైన"
     ]
 
-    # MID (2000–5000)
     mid_kw = [
         # English
         "2000", "3000", "4000", "around 3", "around 4",
@@ -349,10 +415,12 @@ def _detect_bill_range(text):
         "दो हज़ार", "तीन हज़ार", "चार हज़ार",
 
         # Odia
-        "ଦୁଇ ହଜାର", "ତିନି ହଜାର", "ଚାରି ହଜାର"
+        "ଦୁଇ ହଜାର", "ତିନି ହଜାର", "ଚାରି ହଜାର",
+
+        # Telugu
+        "రెండు వేల", "మూడు వేల", "నాలుగు వేల"
     ]
 
-    # LOW (1000–2000)
     low_kw = [
         # English
         "1000", "low", "less",
@@ -361,7 +429,10 @@ def _detect_bill_range(text):
         "ek hazar", "एक हज़ार", "kam", "कम", "thoda", "थोड़ा",
 
         # Odia
-        "ଏକ ହଜାର", "କମ", "କମ୍", "ଅଳ୍ପ"
+        "ଏକ ହଜାର", "କମ", "କମ୍", "ଅଳ୍ପ",
+
+        # Telugu
+        "వెయ్యి", "తక్కువ"
     ]
 
     # ── MATCHING ─────────────────────────────────────
@@ -377,12 +448,12 @@ def _detect_bill_range(text):
         if kw in text_lower:
             return "low"
 
-    # ── GEMINI FALLBACK (MULTI-LANGUAGE) ─────────────
+    # ── GEMINI FALLBACK ──────────────────────────────
     if gemini_model:
         try:
             resp = gemini_model.generate_content(
                 f"""
-User answered electricity bill in English/Hindi/Odia: "{text}"
+User answered electricity bill in English/Hindi/Odia/Telugu: "{text}"
 
 Classify into:
 LOW = ₹1000–2000
@@ -412,6 +483,7 @@ Reply ONLY: LOW / MID / HIGH / UNCLEAR
 
     return None
 
+
 def _detect_timeline(text):
     """Returns '1month', '1to3months', 'enquiry', or None."""
     text_low = text.lower().strip()
@@ -426,7 +498,6 @@ def _detect_timeline(text):
 
     # ── KEYWORDS ─────────────────────────────────────
 
-    # Immediate (within 1 month)
     immediate_kw = [
         # English
         "1 month", "one month", "within 1 month", "immediately", "urgent", "asap",
@@ -435,10 +506,12 @@ def _detect_timeline(text):
         "1 mahine", "ek mahine", "jaldi", "turant", "abhi", "एक महीने", "तुरंत", "अभी",
 
         # Odia
-        "ଏକ ମାସ", "ତୁରନ୍ତ", "ସତ୍ତ୍ୱର", "ଏବେ", "ଶୀଘ୍ର"
+        "ଏକ ମାସ", "ତୁରନ୍ତ", "ସତ୍ତ୍ୱର", "ଏବେ", "ଶୀଘ୍ର",
+
+        # Telugu
+        "ఒక నెల", "తక్షణం", "ఇప్పుడే", "త్వరగా"
     ]
 
-    # Medium (1–3 months)
     medium_kw = [
         # English
         "2 month", "3 month", "2-3", "1-3 months", "few months",
@@ -448,10 +521,12 @@ def _detect_timeline(text):
         "दो महीने", "तीन महीने", "दो-तीन",
 
         # Odia
-        "ଦୁଇ ମାସ", "ତିନି ମାସ", "1-3 ମାସ", "କିଛି ମାସ"
+        "ଦୁଇ ମାସ", "ତିନି ମାସ", "1-3 ମାସ", "କିଛି ମାସ",
+
+        # Telugu
+        "రెండు నెలలు", "మూడు నెలలు", "2-3 నెలలు", "కొన్ని నెలలు"
     ]
 
-    # Enquiry / later / planning
     enquiry_kw = [
         # English
         "enquiry", "planning", "future", "later", "not now", "just checking",
@@ -460,7 +535,10 @@ def _detect_timeline(text):
         "soch", "baad mein", "dekhenge", "sirf", "पूछताछ", "बाद में",
 
         # Odia
-        "ପରେ", "ଭବିଷ୍ୟତ", "ଚିନ୍ତା", "ଦେଖିବା", "ଏବେ ନୁହେଁ", "କେବଳ ପଚାରୁଛି"
+        "ପରେ", "ଭବିଷ୍ୟତ", "ଚିନ୍ତା", "ଦେଖିବା", "ଏବେ ନୁହେଁ", "କେବଳ ପଚାରୁଛି",
+
+        # Telugu
+        "తర్వాత", "భవిష్యత్", "చూద్దాం", "ఇప్పుడే కాదు", "కేవలం అడుగుతున్నాను"
     ]
 
     # ── SCORING SYSTEM ───────────────────────────────
@@ -484,8 +562,19 @@ def _detect_timeline(text):
             scores["enquiry"] += 1
 
     # ── NUMERIC HANDLING ─────────────────────────────
-    # safer: only interpret numbers if "month" or "ମାସ" context exists
-    if "month" in text_low or "mahine" in text_low or "ମାସ" in text_low:
+
+    # Handle ranges like "2-3 months"
+    range_match = re.findall(r'(\d+)\s*[-to]+\s*(\d+)', text_low)
+    if range_match:
+        nums = [int(n) for pair in range_match for n in pair]
+        avg = sum(nums) // len(nums)
+        if avg <= 1:
+            scores["1month"] += 2
+        elif avg <= 3:
+            scores["1to3months"] += 2
+
+    # Detect single number only if context exists
+    if any(x in text_low for x in ["month", "mahine", "ମାସ", "నెల"]):
         nums = re.findall(r'\d+', text_low)
         if nums:
             num = int(nums[0])
@@ -504,7 +593,7 @@ def _detect_timeline(text):
         try:
             resp = gemini_model.generate_content(
                 f"""
-User answered solar installation timeline (English/Hindi/Odia): "{text}"
+User answered solar installation timeline (English/Hindi/Odia/Telugu): "{text}"
 
 Classify:
 1MONTH = within 1 month
@@ -534,6 +623,7 @@ Reply ONLY: 1MONTH / 1TO3MONTHS / ENQUIRY / UNCLEAR
 
     return None
 
+
 def _detect_payment(text):
     """Returns 'full', 'loan', or None."""
     text_low = text.lower().strip()
@@ -557,7 +647,10 @@ def _detect_payment(text):
         "ek baar", "ekbari", "puri", "नकद", "एकसाथ", "पूरी", "फुल",
 
         # Odia
-        "ପୁରା", "ଏକଥରେ", "ନକଦ", "ସମ୍ପୂର୍ଣ୍ଣ"
+        "ପୁରା", "ଏକଥରେ", "ନକଦ", "ସମ୍ପୂର୍ଣ୍ଣ",
+
+        # Telugu
+        "పూర్తి", "ఒకేసారి", "నగదు", "ఫుల్", "క్యాష్"
     ]
 
     # LOAN / EMI
@@ -569,7 +662,10 @@ def _detect_payment(text):
         "किस्त", "लोन", "बैंक", "ईएमआई", "क़िस्त",
 
         # Odia
-        "ଲୋନ୍", "ଇଏମଆଇ", "ବ୍ୟାଙ୍କ", "କିଷ୍ତି"
+        "ଲୋନ୍", "ଇଏମଆଇ", "ବ୍ୟାଙ୍କ", "କିଷ୍ତି",
+
+        # Telugu
+        "లోన్", "ఈఎంఐ", "బ్యాంక్", "కిస్తీ", "ఫైనాన్స్"
     ]
 
     # ── SCORING SYSTEM ───────────────────────────────
@@ -586,6 +682,15 @@ def _detect_payment(text):
         if kw in text_low:
             scores["loan"] += 1
 
+    # ── STRONG SIGNAL OVERRIDE ───────────────────────
+    # if clear loan words exist → prioritize loan
+    if any(k in text_low for k in ["emi", "loan", "ఈఎంఐ", "లోన్"]):
+        return "loan"
+
+    # if clear full payment words exist → prioritize full
+    if any(k in text_low for k in ["cash", "పూర్తి", "నగదు"]):
+        return "full"
+
     # ── DECISION ─────────────────────────────────────
     if scores["full"] > scores["loan"]:
         return "full"
@@ -597,7 +702,7 @@ def _detect_payment(text):
         try:
             resp = gemini_model.generate_content(
                 f"""
-User answered payment preference (English/Hindi/Odia): "{text}"
+User answered payment preference (English/Hindi/Odia/Telugu): "{text}"
 
 Classify:
 FULL = full payment / cash
@@ -624,6 +729,7 @@ Reply ONLY: FULL / LOAN / UNCLEAR
 
     return None
 
+
 def _retry_or_end(session_id, state):
     """Handle retry: re-ask question up to MAX_RETRIES, then end gracefully."""
     retries = sessions[session_id].get("retries", 0) + 1
@@ -634,6 +740,7 @@ def _retry_or_end(session_id, state):
         return END_MISUNDERSTAND
     question = RETRY_QUESTIONS.get(state, "")
     return RETRY_PREFIX + question
+
 
 def handle_user_input(session, user_text):
     """
@@ -690,13 +797,14 @@ def handle_user_input(session, user_text):
         audio_path = PRE_RECORDED_AUDIO[bot_reply]
     else:
         audio_path = f"static/reply_{session_id}.wav"
-        text_to_speech_or(bot_reply, audio_path)
+        text_to_speech_te(bot_reply, audio_path)
 
     return {
         "text": bot_reply,
         "audio_path": audio_path,
         "end": sessions[session_id]["state"] == "ENDED"
     }
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -804,13 +912,20 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
         payment = _detect_payment(user_text_low)
         if payment is None:
             return _retry_or_end(session_id, "STATE_5")
+
         _log_exchange(user_text_safe)
         sessions[session_id]["data"]["payment"] = payment
         sessions[session_id]["retries"] = 0
-        sessions[session_id]["state"] = "STATE_6"
+
         print(f"[Session {session_id}] Lead Data: {sessions[session_id]['data']}")
         _finish_call(status="completed")
-        return STATE_6_CLOSING
+
+        # ✅ DIRECTLY END
+        sessions[session_id]["state"] = "ENDED"
+
+        # ✅ SEND BOTH MESSAGES
+        return STATE_6_CLOSING + " " + STATE_DISCONNECT
+
 
     # ── STATE_6: Closing / any further input ─────────────────────────────────
     elif state in ("STATE_6", "ENDED"):
@@ -836,11 +951,11 @@ def _humanize_text(text):
     t = t.replace(". ", "., ")
     return t.strip()
 
-def text_to_speech_or(text, output_path):
+def text_to_speech_te(text, output_path):
     try:
         response = sarvam_client.text_to_speech.convert(
             text=text,
-            target_language_code="od-IN",
+            target_language_code="te-IN",
             speaker="ritu",
             pace=1.2,
             speech_sample_rate=22050,
@@ -854,7 +969,7 @@ def text_to_speech_or(text, output_path):
     except Exception as e:
         print(f"Sarvam TTS failed: {e}")
         # Google Fallback
-        tts = gTTS(text=text, lang="or")
+        tts = gTTS(text=text, lang="te")
         tts.save(output_path)
         return output_path
 
@@ -882,7 +997,7 @@ def start_call():
     else:
         print("not found pre recorded audio")
         audio_file = f"static/intro_{session_id}.wav"
-        text_to_speech_or(bot_reply, audio_file)
+        text_to_speech_te(bot_reply, audio_file)
         audio_url = f"/{audio_file}"
 
     return jsonify({
@@ -932,7 +1047,7 @@ def webhook():
         r.energy_threshold = 300
         with sr.AudioFile(wav_path) as source:
             audio_data = r.record(source)
-        user_text = r.recognize_google(audio_data, language="or-IN")
+        user_text = r.recognize_google(audio_data, language="te-IN")
         print(f"[Session {session_id}] Transcription: '{user_text}'")
 
         os.remove(wav_path)
@@ -964,7 +1079,7 @@ def webhook():
             sessions[session_id]["state"] = "ENDED"
             sessions[session_id]["no_speech"] = 0
             bot_audio_path = f"static/reply_{session_id}.wav"
-            text_to_speech_or(NO_SPEECH_END, bot_audio_path)
+            text_to_speech_te(NO_SPEECH_END, bot_audio_path)
             return jsonify({
                 "text": "[No speech detected]",
                 "answer": NO_SPEECH_END,
@@ -974,7 +1089,7 @@ def webhook():
 
         return jsonify({
             "text": "[No speech detected]",
-            "answer": "मुझे आपकी आवाज़ नहीं आ रही है। कृपया दोहराएँ।",
+            "answer": "మీ స్వరం వినిపించడం లేదు. దయచేసి మళ్లీ చెప్పండి.",
             "audio_url": "",
             "tokens": gemini_tokens
         })
@@ -989,7 +1104,7 @@ def webhook():
         audio_url = f"/{PRE_RECORDED_AUDIO[bot_reply]}"
     else:
         bot_audio_path = f"static/reply_{session_id}.wav"
-        text_to_speech_or(bot_reply, bot_audio_path)
+        text_to_speech_te(bot_reply, bot_audio_path)
         audio_url = f"/{bot_audio_path}"
 
     return jsonify({
