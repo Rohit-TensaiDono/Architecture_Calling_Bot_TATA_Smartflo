@@ -822,7 +822,7 @@ _STATE_QUESTION_MAP = {
 }
 
 _STATE_QUESTION_MAP_EN = {
-    "STATE_1": "Hello! I am Dipti speaking from Mierae Solar. By installing solar at your house, you can get a government subsidy of up to 1 lakh 8 thousand rupees, and save your electricity bill up to four thousand rupees every month. Would you like to take free information about solar?",
+    "STATE_1": "Hello! I am Dipti speaking from Mierae Solar. By installing solar at your house, you can get a government subsidy of up to 78 thousand rupees, and save your electricity bill up to four thousand rupees every month. Would you like to take free information about solar?",
     "STATE_2": "Very good! Firstly tell me, what type of property do you have? Is it an independent house, apartment, or commercial property?",
     "STATE_3": "What is your average monthly electricity bill? Is it between one thousand and two thousand, between two thousand and five thousand, or more than five thousand?",
     "STATE_4": "When do you want to get the solar installation done? Within one month, within one to three months, or are you just inquiring right now?",
