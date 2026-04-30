@@ -4,7 +4,7 @@ name: Deploy API to EC2 via ECR repo
 on:
   push:
     branches:
-      - dev
+      - main
 
 jobs:
   deploy:
