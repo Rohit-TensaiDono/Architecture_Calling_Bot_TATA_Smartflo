@@ -1,0 +1,16 @@
+flask
+fastapi
+uvicorn
+websockets
+pydub
+requests
+SpeechRecognition
+python-dotenv
+google-generativeai
+sarvamai==0.1.25
+jinja2
+python-multipart
+gTTS
+aiofiles
+openai-whisper
+edge-tts
