@@ -848,13 +848,67 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
     user_text_safe = str(user_text).strip()
     user_text_low = user_text_safe.lower()
 
+
+    def _translate_to_english(text: str) -> str:
+        if not text or not text.strip():
+            return text
+
+        # ── 1. Sarvam AI translate (auto-detect source language) ─────────────────
+        try:
+            resp = requests.post(
+                "https://api.sarvam.ai/translate",
+                json={
+                    "input": text,
+                    "source_language_code": "auto",
+                    "target_language_code": "en-IN",
+                    "speaker_gender": "Female",
+                    "mode": "formal",
+                    "model": "mayura:v1",
+                    "enable_preprocessing": False,
+                },
+                headers={
+                    "api-subscription-key": "sk_1egy7shz_foVYeKo9OrfrtR454ZagxTyw",
+                    "Content-Type": "application/json",
+                },
+                timeout=8,
+            )
+            if resp.ok:
+                translated = resp.json().get("translated_text", "").strip()
+                if translated:
+                    print(f"[Sarvam Translate] '{text}' → '{translated}'")
+                    return translated
+            print(f"[Sarvam Translate] Non-OK {resp.status_code}: {resp.text[:100]}")
+        except Exception as e:
+            print(f"[Sarvam Translate] Error: {e}")
+
+        # ── 2. Google Translate free fallback (auto-detect as well) ──────────────
+        try:
+            gt_resp = requests.get(
+                "https://translate.googleapis.com/translate_a/single",
+                params={"client": "gtx", "sl": "auto", "tl": "en", "dt": "t", "q": text},
+                timeout=8,
+            )
+            if gt_resp.ok:
+                data = gt_resp.json()
+                translated = "".join(part[0] for part in data[0] if part[0]).strip()
+                if translated:
+                    print(f"[Google Translate Fallback] '{text}' → '{translated}'")
+                    return translated
+        except Exception as e:
+            print(f"[Google Translate Fallback] Error: {e}")
+
+        print(f"[Translation] Both providers failed — storing raw: '{text[:50]}'")
+        return text
+
     # Helper: log a completed Q&A exchange to DB
     def _log_exchange(answer: str):
         """Log (question asked in this state, user's answer) to the DB."""
         turn = sessions[session_id]["turn"] + 1
         sessions[session_id]["turn"] = turn
         question_text = _STATE_QUESTION_MAP_EN.get(state, state)
-        db.add_exchange(session_id, question_text, answer, state, turn)
+        db.add_exchange(session_id, question_text, _translate_to_english(answer), state, turn)
+
+
 
     # Helper: mark call complete in DB
     def _finish_call(status="completed"):
