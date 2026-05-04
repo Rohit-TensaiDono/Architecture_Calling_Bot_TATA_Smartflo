@@ -398,6 +398,11 @@ async def initiate_call(body: dict):
     return result
 
 
+@app.route("/check_status", methods=["GET"])
+def check_status():
+    return bot_module.check_status_eng()
+
+
 @app.post("/bulk-dial")
 async def bulk_dial(body: dict):
     """

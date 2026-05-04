@@ -899,6 +899,34 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
 
         print(f"[Translation] Both providers failed — storing raw: '{text[:50]}'")
         return text
+    
+    def check_status_eng():
+        try:
+            test_inputs = [
+                "ନମସ୍କାର",   # Odia
+                "नमस्ते",     # Hindi
+                "నమస్కారం",  # Telugu
+                "ನಮಸ್ಕಾರ"    # Kannada
+            ]
+
+            results = []
+
+            for text in test_inputs:
+                output = _translate_to_english(text)
+                results.append(bool(output and isinstance(output, str)))
+
+            return {
+                "translation_pipeline_working": all(results),
+                "sarvam_key_present": bool(os.getenv("SARVAM_API_KEY")),
+                "gemini_key_present": bool(os.getenv("GEMINI_API_KEY")),
+                "elevenlabs_key_present": bool(os.getenv("ELEVENLABS_API_KEY")),
+            }
+
+        except Exception as e:
+            return {
+                "translation_pipeline_working": False,
+                "error": str(e)
+            }
 
     # Helper: log a completed Q&A exchange to DB
     def _log_exchange(answer: str):
