@@ -398,7 +398,7 @@ async def initiate_call(body: dict):
     return result
 
 
-@app.route("/check_status", methods=["GET"])
+@app.get("/check_status")
 def check_status():
     return bot_module.check_status_eng()
 
