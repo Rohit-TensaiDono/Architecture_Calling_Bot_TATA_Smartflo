@@ -42,3 +42,4 @@ jobs:
             # Run deployment script
             sudo chmod +x /home/ubuntu/scripts/tgunnativoicebot.sh
             sh /home/ubuntu/scripts/tgunnativoicebot.sh
+          EOF
