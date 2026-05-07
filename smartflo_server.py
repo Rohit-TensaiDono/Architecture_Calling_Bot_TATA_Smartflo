@@ -47,6 +47,7 @@ import solar_webhook as bot_module
 # ── Database (conversation logger) ─────────────────────────────────────────────
 from db import db, register_call_completion_listener
 from batch_manager import BatchCallManager, extract_bulk_payload
+from dial_guard import RecentDialGuard
 
 load_dotenv()
 
@@ -63,6 +64,8 @@ SMARTFLO_PASSWORD  = os.getenv("SMARTFLO_PASSWORD",  "")
 SMARTFLO_API_TOKEN = os.getenv("SMARTFLO_API_TOKEN", "")
 # DID / virtual number that SmartFlo shows to the customer on outbound calls
 SMARTFLO_CALLER_ID = os.getenv("SMARTFLO_CALLER_ID", "")
+SMARTFLO_DUPLICATE_GUARD_SECONDS = int(os.getenv("SMARTFLO_DUPLICATE_GUARD_SECONDS", "300"))
+dial_guard = RecentDialGuard(SMARTFLO_DUPLICATE_GUARD_SECONDS)
 
 # ---------------------------------------------------------------------------
 # FastAPI app
@@ -141,6 +144,14 @@ def initiate_click_to_call(customer_number: str, caller_id: str | None = None) -
     # Normalize numbers
     did = (caller_id or os.getenv("SMARTFLO_CALLER_ID", "")).lstrip("+")
     customer_number = customer_number.lstrip("+")
+    if not dial_guard.allow(customer_number):
+        print(f"[SmartFlo] Duplicate dial suppressed for customer {customer_number}")
+        return {
+            "success": False,
+            "duplicate": True,
+            "error": "duplicate customer dial suppressed",
+            "customer_number": customer_number,
+        }
 
     payload = {
         "async": 1,
@@ -169,6 +180,9 @@ def initiate_click_to_call(customer_number: str, caller_id: str | None = None) -
         except Exception:
             data = {"raw": resp.text}
 
+        if not resp.ok:
+            dial_guard.release(customer_number)
+
         return {
             "success": resp.ok,
             "status_code": resp.status_code,
@@ -176,6 +190,7 @@ def initiate_click_to_call(customer_number: str, caller_id: str | None = None) -
         }
 
     except Exception as e:
+        dial_guard.release(customer_number)
         print(f"[NEW API] Error: {e}")
         return {"success": False, "error": str(e)}
 

@@ -153,6 +153,16 @@ class BatchManagerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(agents, ["918001"])
         self.assertIn("duplicate contact numbers", error)
 
+    async def test_recent_dial_guard_blocks_fast_duplicates(self):
+        from dial_guard import RecentDialGuard
+
+        guard = RecentDialGuard(ttl_seconds=60)
+
+        self.assertTrue(guard.allow("+919001"))
+        self.assertFalse(guard.allow("919001"))
+        guard.release("919001")
+        self.assertTrue(guard.allow("919001"))
+
 
 if __name__ == "__main__":
     unittest.main()
