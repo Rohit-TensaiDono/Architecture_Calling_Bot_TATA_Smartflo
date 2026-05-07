@@ -45,7 +45,8 @@ from smartflo_audio import smartflo_service, audio_converter, SmartfloAudioConve
 import solar_webhook as bot_module
 
 # ── Database (conversation logger) ─────────────────────────────────────────────
-from db import db
+from db import db, register_call_completion_listener
+from batch_manager import BatchCallManager
 
 load_dotenv()
 
@@ -80,6 +81,14 @@ templates = Jinja2Templates(directory="templates")
 
 # Static files setup
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+batch_manager = None
+
+
+@app.on_event("startup")
+async def startup_event():
+    if batch_manager:
+        batch_manager.set_loop(asyncio.get_running_loop())
 
 # ---------------------------------------------------------------------------
 # SmartFlo Auth helpers
@@ -169,6 +178,10 @@ def initiate_click_to_call(customer_number: str, caller_id: str | None = None) -
     except Exception as e:
         print(f"[NEW API] Error: {e}")
         return {"success": False, "error": str(e)}
+
+
+batch_manager = BatchCallManager(initiate_click_to_call)
+register_call_completion_listener(batch_manager.on_call_completed)
 
 
 # ---------------------------------------------------------------------------
@@ -398,7 +411,7 @@ async def initiate_call(body: dict):
     return result
 
 
-@app.post("/bulk-dial")
+@app.post("/bulk-dial-legacy")
 async def bulk_dial(body: dict):
     """
     Dial multiple customers sequentially with a configurable delay.
@@ -445,6 +458,29 @@ async def bulk_dial(body: dict):
 
     asyncio.create_task(_run_bulk())
     return {"success": True, "job_id": job_id, "queued": len(numbers), "delay_s": delay}
+
+
+@app.post("/bulk-dial")
+async def bulk_dial_batched(body: dict):
+    numbers = body.get("numbers", [])
+    agents = body.get("agents") or body.get("caller_ids") or body.get("agent_ids") or []
+    caller_id = body.get("caller_id", "")
+    if caller_id and not agents:
+        agents = [caller_id]
+
+    if not numbers:
+        return {"success": False, "error": "numbers list is required"}
+    if not agents:
+        return {"success": False, "error": "agents/caller_ids list or caller_id is required"}
+
+    import uuid as _uuid
+    job_id = str(_uuid.uuid4())[:8]
+    return batch_manager.create_job(job_id, numbers, agents)
+
+
+@app.get("/bulk-dial/{job_id}")
+async def bulk_dial_status(job_id: str):
+    return batch_manager.status(job_id)
 
 
 @app.get("/outbound", response_class=HTMLResponse)
@@ -751,6 +787,7 @@ async def smartflo_ws(websocket: WebSocket):
                 # Register call in DB
                 call_sid = start_data.get("callSid", "")
                 db.create_call(session_id, mobile_number=agent_number, customer_number=customer_number, call_sid=call_sid)
+                batch_manager.register_session(customer_number, agent_number, session_id, call_sid)
 
                 # Split greeting into two parts to reduce initial TTFB (Time To First Byte)
                 # First part is short (Greeting), Second part is longer (Subsidy intro)
@@ -811,6 +848,7 @@ async def smartflo_ws(websocket: WebSocket):
                             # Final attempt exhausted — end call
                             if session_id in bot_module.sessions:
                                 bot_module.sessions[session_id]["state"] = "ENDED"
+                            db.complete_call(session_id, lead_data=bot_module.sessions.get(session_id, {}).get("data", {}), status="no_speech")
                             await send_audio_to_smartflo(websocket, stream_sid, bot_module.NO_SPEECH_END, bot_speaking, session_id, final=True)
                             break
                         else:
@@ -899,6 +937,7 @@ async def smartflo_webhook(request: Request):
 
     print("\n📞 SMARTFLO WEBHOOK HIT (Telugu BOT):")
     print(data)
+    batch_manager.on_provider_status(data)
 
     return {"status": "received"}
 

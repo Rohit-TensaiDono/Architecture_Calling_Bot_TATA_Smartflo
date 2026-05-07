@@ -21,6 +21,8 @@ DB_PATH = "solar_calls.db"
 
 # Thread-local storage for connections
 _local = threading.local()
+_completion_listeners = []
+_completion_listeners_lock = threading.Lock()
 
 
 def _get_conn() -> sqlite3.Connection:
@@ -108,6 +110,12 @@ def init_db():
 # Public API
 # ─────────────────────────────────────────────────────────────────────────────
 
+def register_call_completion_listener(listener):
+    """Register a callback invoked once when a call first reaches a final state."""
+    with _completion_listeners_lock:
+        _completion_listeners.append(listener)
+
+
 class ConversationDB:
 
     def create_call(self, session_id: str, mobile_number: str = "unknown", customer_number: str = "unknown", call_sid: str = "") -> None:
@@ -155,7 +163,7 @@ class ConversationDB:
         except Exception as e:
             print(f"[DB] add_exchange error: {e}")
 
-    def complete_call(self, session_id: str, lead_data: dict = None, status: str = "completed") -> None:
+    def complete_call(self, session_id: str, lead_data: dict = None, status: str = "completed") -> bool:
         """
         Mark the call as complete and persist collected lead qualification data.
         lead_data keys: property_type, bill_range, timeline, payment
@@ -172,7 +180,7 @@ class ConversationDB:
                         bill_range    = COALESCE(?, bill_range),
                         timeline      = COALESCE(?, timeline),
                         payment_pref  = COALESCE(?, payment_pref)
-                       WHERE session_id = ?""",
+                       WHERE session_id = ? AND call_status = 'ongoing'""",
                     (
                         datetime.now().isoformat(),
                         status,
@@ -183,6 +191,10 @@ class ConversationDB:
                         session_id,
                     )
                 )
+                changed = cur.rowcount > 0
+            if not changed:
+                print(f"[DB] Call completion ignored - session:{session_id[:8]} already final or missing")
+                return False
             print(f"[DB] Call completed — session:{session_id[:8]}… status:{status} lead:{lead_data}")
 
             def _send_webhook():
@@ -216,8 +228,20 @@ class ConversationDB:
             import threading
             threading.Thread(target=_send_webhook, daemon=True).start()
 
+            call_info = self.get_call(session_id)
+            with _completion_listeners_lock:
+                listeners = list(_completion_listeners)
+            for listener in listeners:
+                try:
+                    listener(session_id, status, call_info or {})
+                except Exception as e:
+                    print(f"[DB] completion listener error: {e}")
+
+            return True
+
         except Exception as e:
             print(f"[DB] complete_call error: {e}")
+            return False
 
     def get_call(self, session_id: str) -> dict | None:
         """Fetch call record by session_id."""
