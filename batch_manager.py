@@ -32,6 +32,102 @@ FAILED_PROVIDER_STATUSES = {
 }
 
 
+def first_value(data: dict, keys: tuple[str, ...]) -> str:
+    for key in keys:
+        value = data.get(key)
+        if value:
+            return str(value)
+    return ""
+
+
+def extract_number(item) -> str:
+    if isinstance(item, dict):
+        return first_value(
+            item,
+            (
+                "customer_number",
+                "customerNumber",
+                "destination_number",
+                "destination",
+                "phone_number",
+                "phone",
+                "mobile_number",
+                "mobile",
+                "number",
+            ),
+        ).strip().lstrip("+")
+    return str(item).strip().lstrip("+")
+
+
+def extract_agent(item) -> str:
+    if isinstance(item, dict):
+        return first_value(
+            item,
+            (
+                "caller_id",
+                "callerId",
+                "agent_number",
+                "agentNumber",
+                "phone_number",
+                "phone",
+                "mobile_number",
+                "mobile",
+                "number",
+            ),
+        ).strip().lstrip("+")
+    return str(item).strip().lstrip("+")
+
+
+def dedupe_preserve_order(values: list[str]) -> list[str]:
+    seen = set()
+    result = []
+    for value in values:
+        if value and value not in seen:
+            seen.add(value)
+            result.append(value)
+    return result
+
+
+def extract_bulk_payload(body: dict) -> tuple[list[str], list[str], str | None]:
+    raw_numbers = (
+        body.get("numbers")
+        or body.get("contacts")
+        or body.get("leads")
+        or body.get("phone_numbers")
+        or body.get("customer_numbers")
+        or []
+    )
+    raw_agents = (
+        body.get("agents")
+        or body.get("assigned_agents")
+        or body.get("caller_ids")
+        or body.get("agent_ids")
+        or []
+    )
+
+    if isinstance(raw_numbers, str):
+        raw_numbers = [raw_numbers]
+    if isinstance(raw_agents, str):
+        raw_agents = [raw_agents]
+
+    numbers = [extract_number(item) for item in raw_numbers]
+    agents = [extract_agent(item) for item in raw_agents]
+
+    caller_id = body.get("caller_id", "")
+    if caller_id and not agents:
+        agents = [str(caller_id).strip().lstrip("+")]
+
+    numbers = [number for number in numbers if number]
+    agents = dedupe_preserve_order([agent for agent in agents if agent])
+
+    if not body.get("allow_duplicate_contacts", False):
+        unique_numbers = dedupe_preserve_order(numbers)
+        if len(unique_numbers) != len(numbers):
+            return numbers, agents, "duplicate contact numbers in payload; pass allow_duplicate_contacts=true to override"
+
+    return numbers, agents, None
+
+
 class BatchCallManager:
     def __init__(self, dialer: Callable[[str, Optional[str]], dict]):
         self._dialer = dialer

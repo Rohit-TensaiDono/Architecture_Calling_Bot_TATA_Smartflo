@@ -119,6 +119,40 @@ class BatchManagerTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(second)
         self.assertEqual(events, [("session-once", "completed", "completed")])
 
+    async def test_campaign_style_bulk_payload_is_normalized(self):
+        body = {
+            "contacts": [
+                {"mobile_number": "+919001"},
+                {"customer_number": "919002"},
+            ],
+            "assigned_agents": [
+                {"caller_id": "+918001"},
+                {"mobile_number": "918002"},
+                {"mobile_number": "918002"},
+            ],
+        }
+
+        numbers, agents, error = self.batch_manager_module.extract_bulk_payload(body)
+
+        self.assertIsNone(error)
+        self.assertEqual(numbers, ["919001", "919002"])
+        self.assertEqual(agents, ["918001", "918002"])
+
+    async def test_duplicate_bulk_contacts_are_rejected(self):
+        numbers, agents, error = self.batch_manager_module.extract_bulk_payload(
+            {
+                "contacts": [
+                    {"mobile_number": "919001"},
+                    {"mobile_number": "919001"},
+                ],
+                "agents": ["918001"],
+            }
+        )
+
+        self.assertEqual(numbers, ["919001", "919001"])
+        self.assertEqual(agents, ["918001"])
+        self.assertIn("duplicate contact numbers", error)
+
 
 if __name__ == "__main__":
     unittest.main()

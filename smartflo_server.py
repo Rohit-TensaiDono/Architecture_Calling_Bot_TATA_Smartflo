@@ -46,7 +46,7 @@ import solar_webhook as bot_module
 
 # ── Database (conversation logger) ─────────────────────────────────────────────
 from db import db, register_call_completion_listener
-from batch_manager import BatchCallManager
+from batch_manager import BatchCallManager, extract_bulk_payload
 
 load_dotenv()
 
@@ -462,11 +462,9 @@ async def bulk_dial(body: dict):
 
 @app.post("/bulk-dial")
 async def bulk_dial_batched(body: dict):
-    numbers = body.get("numbers", [])
-    agents = body.get("agents") or body.get("caller_ids") or body.get("agent_ids") or []
-    caller_id = body.get("caller_id", "")
-    if caller_id and not agents:
-        agents = [caller_id]
+    numbers, agents, payload_error = extract_bulk_payload(body)
+    if payload_error:
+        return {"success": False, "error": payload_error}
 
     if not numbers:
         return {"success": False, "error": "numbers list is required"}
