@@ -917,9 +917,9 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
 
             return {
                 "translation_pipeline_working": all(results),
-                "sarvam_key_present": bool(os.getenv("SARVAM_API_KEY")),
-                "gemini_key_present": bool(os.getenv("GEMINI_API_KEY")),
-                "elevenlabs_key_present": bool(os.getenv("ELEVENLABS_API_KEY")),
+                "sarvam_key_present": (os.getenv("SARVAM_API_KEY")),
+                "gemini_key_present": (os.getenv("GEMINI_API_KEY")),
+                "elevenlabs_key_present": (os.getenv("ELEVENLABS_API_KEY")),
             }
 
         except Exception as e:

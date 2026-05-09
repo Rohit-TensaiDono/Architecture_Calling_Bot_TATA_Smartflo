@@ -399,7 +399,7 @@ async def initiate_call(body: dict):
 
 
 @app.get("/check_status")
-def check_status():
+async def check_status(request: Request):
     return bot_module.check_status_eng()
 
 
