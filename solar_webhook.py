@@ -766,29 +766,11 @@ def handle_state_2(session_id, user_text_low, user_text_safe):
     return STATE_3_PROPERTY
 
 def handle_state_3(session_id, user_text_low, user_text_safe):
-
-    # Normalize Telugu transliterations that te-IN STT produces for English words
-    normalized = (
-        user_text_low
-        .replace("క్వార్టర్", "quarter")
-        .replace("హాఫ్", "half")
-        .replace("ఒన్", "one")
-        .replace("వన్", "one")
-        .replace("పావు", "quarter")
-        .replace("అర", "half")
-        .replace("ఒక", "one")
-        .replace("ఎకరం", "acre")
-        .replace("ఎకర్", "acre")
-        .replace("ఎకరాలు", "acre")
-    )
-
-    land_keywords = [
-        "quarter", "half", "one", "acre", "acres",
-        "1", "2", "పావు", "అర", "ఒక", "ఎకరం", "ఎకర్",
-    ]
-
-    if not any(x in normalized for x in land_keywords):
-        return _retry_or_end(session_id, "STATE_3")
+    # STATE_3 — land size
+    # No strict keyword validation here. STT (te-IN) frequently mishears
+    # short phrases like "పావు ఎకరం" as unrelated Telugu words (confirmed in logs).
+    # We store whatever came through — the translated text in DB is readable.
+    # Retrying just frustrates the caller and ends the call.
 
     _log_exchange(session_id, "STATE_3", user_text_safe)
     sessions[session_id]["data"]["land_size"] = user_text_safe
