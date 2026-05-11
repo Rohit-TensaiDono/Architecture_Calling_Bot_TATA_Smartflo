@@ -171,13 +171,94 @@ for state_key, q_text in RETRY_QUESTIONS.items():
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+def _translate_to_english(text: str) -> str:
+    if not text or not text.strip():
+        return text
+
+    # ── 1. Sarvam AI translate (auto-detect source language) ─────────────────
+    try:
+        resp = requests.post(
+            "https://api.sarvam.ai/translate",
+            json={
+                "input": text,
+                "source_language_code": "auto",
+                "target_language_code": "en-IN",
+                "speaker_gender": "Female",
+                "mode": "formal",
+                "model": "mayura:v1",
+                "enable_preprocessing": False,
+            },
+            headers={
+                "api-subscription-key": "sk_1egy7shz_foVYeKo9OrfrtR454ZagxTyw",
+                "Content-Type": "application/json",
+            },
+            timeout=8,
+        )
+        if resp.ok:
+            translated = resp.json().get("translated_text", "").strip()
+            if translated:
+                print(f"[Sarvam Translate] '{text}' → '{translated}'")
+                return translated
+        print(f"[Sarvam Translate] Non-OK {resp.status_code}: {resp.text[:100]}")
+    except Exception as e:
+        print(f"[Sarvam Translate] Error: {e}")
+
+    # ── 2. Google Translate free fallback (auto-detect as well) ──────────────
+    try:
+        gt_resp = requests.get(
+            "https://translate.googleapis.com/translate_a/single",
+            params={"client": "gtx", "sl": "auto", "tl": "en", "dt": "t", "q": text},
+            timeout=8,
+        )
+        if gt_resp.ok:
+            data = gt_resp.json()
+            translated = "".join(part[0] for part in data[0] if part[0]).strip()
+            if translated:
+                print(f"[Google Translate Fallback] '{text}' → '{translated}'")
+                return translated
+    except Exception as e:
+        print(f"[Google Translate Fallback] Error: {e}")
+
+    print(f"[Translation] Both providers failed — storing raw: '{text[:50]}'")
+    return text
+
 def _log_exchange(session_id, state, answer):
     turn = sessions[session_id]["turn"] + 1
     sessions[session_id]["turn"] = turn
 
     question_text = _STATE_QUESTION_MAP_EN.get(state, state)
 
-    db.add_exchange(session_id, question_text, answer, state, turn)
+    db.add_exchange(session_id, question_text, _translate_to_english(answer), state, turn)
+
+def check_status_eng():
+    try:
+        test_inputs = [
+            "ନମସ୍କାର",   # Odia
+            "नमस्ते",     # Hindi
+            "నమస్కారం",  # Telugu
+            "ನಮಸ್ಕಾರ"    # Kannada
+        ]
+
+        results = []
+
+        for text in test_inputs:
+            output = _translate_to_english(text)
+            results.append(bool(output and isinstance(output, str)))
+
+        return {
+            "translation_pipeline_working": all(results),
+            "sarvam_key_present": (os.getenv("SARVAM_API_KEY")),
+            "gemini_key_present": (os.getenv("GEMINI_API_KEY")),
+            "elevenlabs_key_present": (os.getenv("ELEVENLABS_API_KEY")),
+        }
+
+    except Exception as e:
+        return {
+            "translation_pipeline_working": False,
+            "error": str(e)
+        }
+
+
 
 def _finish_call(session_id, status="completed"):
     lead = sessions[session_id].get("data", {})
@@ -341,69 +422,48 @@ def _detect_bill_range(text):
 def _detect_timeline(text):
     """Returns '1month', '1to3months', 'enquiry', or None."""
     text_low = text.lower().strip()
-    text_low = text_low.replace("మంత్", "month")
 
-    # ── NORMALIZE ────────────────────────────────────
+    # Normalize Telugu/Hinglish → English so keyword matching works
     text_low = (
-        text_low.replace(".", " ")
+        text_low
+        .replace("మంత్", "month")
+        .replace("మంథ్", "month")
+        .replace("నెల", "month")
+        .replace("నెలలు", "month")
+        .replace("వన్", "one")
+        .replace("ఒన్", "one")
+        .replace("ట్వో", "two")
+        .replace("త్రీ", "three")
+        .replace("ఒక", "one")
+        .replace("రెండు", "two")
+        .replace("మూడు", "three")
+        .replace(".", " ")
         .replace(",", " ")
         .replace("।", " ")
         .replace("?", " ")
     )
 
-    # ── KEYWORDS ─────────────────────────────────────
-
     immediate_kw = [
-        # English
         "1 month", "one month", "within 1 month", "immediately", "urgent", "asap",
-
-        # Hindi
-        "1 mahine", "ek mahine", "jaldi", "turant", "abhi", "एक महीने", "तुरंत", "अभी",
-
-        # Odia
-        "ଏକ ମାସ", "ତୁରନ୍ତ", "ସତ୍ତ୍ୱର", "ଏବେ", "ଶୀଘ୍ର",
-
-        # Telugu
-        "ఒక నెల", "తక్షణం", "ఇప్పుడే", "త్వరగా"
+        "1 mahine", "ek mahine", "jaldi", "turant", "abhi",
+        "ఒక నెల", "తక్షణం", "ఇప్పుడే", "త్వరగా",
     ]
 
     medium_kw = [
-        # English
-        "2 month", "3 month", "2-3", "1-3 months", "few months",
-
-        # Hindi
-        "do mahine", "teen mahine", "2 se 3", "1 se 3",
-        "दो महीने", "तीन महीने", "दो-तीन",
-
-        # Odia
-        "ଦୁଇ ମାସ", "ତିନି ମାସ", "1-3 ମାସ", "କିଛି ମାସ",
-
-        # Telugu
-        "రెండు నెలలు", "మూడు నెలలు", "2-3 నెలలు", "కొన్ని నెలలు"
+        "2 month", "3 month", "two month", "three month",
+        "2-3", "1-3", "few month",
+        "do mahine", "teen mahine",
+        "రెండు నెలలు", "మూడు నెలలు",
     ]
 
     enquiry_kw = [
-        # English
         "enquiry", "planning", "future", "later", "not now", "just checking",
-
-        # Hindi
-        "soch", "baad mein", "dekhenge", "sirf", "पूछताछ", "बाद में",
-
-        # Odia
-        "ପରେ", "ଭବିଷ୍ୟତ", "ଚିନ୍ତା", "ଦେଖିବା", "ଏବେ ନୁହେଁ", "କେବଳ ପଚାରୁଛି",
-
-        # Telugu
-        "తర్వాత", "భవిష్యత్", "చూద్దాం", "ఇప్పుడే కాదు", "కేవలం అడుగుతున్నాను"
+        "soch", "baad mein", "dekhenge", "sirf",
+        "తర్వాత", "భవిష్యత్", "చూద్దాం", "ఇప్పుడే కాదు",
     ]
 
-    # ── SCORING SYSTEM ───────────────────────────────
-    scores = {
-        "1month": 0,
-        "1to3months": 0,
-        "enquiry": 0
-    }
+    scores = {"1month": 0, "1to3months": 0, "enquiry": 0}
 
-    # keyword scoring
     for kw in immediate_kw:
         if kw in text_low:
             scores["1month"] += 1
@@ -416,9 +476,7 @@ def _detect_timeline(text):
         if kw in text_low:
             scores["enquiry"] += 1
 
-    # ── NUMERIC HANDLING ─────────────────────────────
-
-    # Handle ranges like "2-3 months"
+    # Numeric range e.g. "2-3 months"
     range_match = re.findall(r'(\d+)\s*[-to]+\s*(\d+)', text_low)
     if range_match:
         nums = [int(n) for pair in range_match for n in pair]
@@ -428,8 +486,8 @@ def _detect_timeline(text):
         elif avg <= 3:
             scores["1to3months"] += 2
 
-    # Detect single number only if context exists
-    if any(x in text_low for x in ["month", "mahine", "ମାସ", "నెల"]):
+    # Single digit with month context
+    if any(x in text_low for x in ["month", "mahine", "నెల"]):
         nums = re.findall(r'\d+', text_low)
         if nums:
             num = int(nums[0])
@@ -438,17 +496,23 @@ def _detect_timeline(text):
             elif num <= 3:
                 scores["1to3months"] += 2
 
-    # ── FINAL DECISION ───────────────────────────────
+    # Word number with month context (after normalization above)
+    if "month" in text_low:
+        if "one" in text_low:
+            scores["1month"] += 2
+        if "two" in text_low or "three" in text_low:
+            scores["1to3months"] += 2
+
     best = max(scores, key=scores.get)
     if scores[best] > 0:
         return best
 
-    # ── GEMINI FALLBACK ──────────────────────────────
+    # Gemini fallback
     if gemini_model:
         try:
             resp = gemini_model.generate_content(
                 f"""
-User answered solar installation timeline (English/Hindi/Odia/Telugu): "{text}"
+User answered investment timeline (English/Hindi/Telugu): "{text}"
 
 Classify:
 1MONTH = within 1 month
@@ -457,22 +521,16 @@ ENQUIRY = just enquiry / later / not now
 
 Reply ONLY: 1MONTH / 1TO3MONTHS / ENQUIRY / UNCLEAR
 """,
-                generation_config=genai.GenerationConfig(
-                    max_output_tokens=5,
-                    temperature=0
-                )
+                generation_config=genai.GenerationConfig(max_output_tokens=5, temperature=0)
             )
-
             track_tokens_usage(resp)
             ans = resp.text.strip().upper()
-
             if "1MONTH" in ans:
                 return "1month"
             if "1TO3MONTHS" in ans:
                 return "1to3months"
             if "ENQUIRY" in ans:
                 return "enquiry"
-
         except Exception as e:
             print(f"Timeline detect error: {e}")
 
@@ -709,19 +767,33 @@ def handle_state_2(session_id, user_text_low, user_text_safe):
 
 def handle_state_3(session_id, user_text_low, user_text_safe):
 
-    # light validation (not strict)
-    if not any(x in user_text_low for x in [
-        "ఎకరం", "acre", "acres", "పావు", "అర"
-    ]):
-        # allow 1 retry cycle only effectively
+    # Normalize Telugu transliterations that te-IN STT produces for English words
+    normalized = (
+        user_text_low
+        .replace("క్వార్టర్", "quarter")
+        .replace("హాఫ్", "half")
+        .replace("ఒన్", "one")
+        .replace("వన్", "one")
+        .replace("పావు", "quarter")
+        .replace("అర", "half")
+        .replace("ఒక", "one")
+        .replace("ఎకరం", "acre")
+        .replace("ఎకర్", "acre")
+        .replace("ఎకరాలు", "acre")
+    )
+
+    land_keywords = [
+        "quarter", "half", "one", "acre", "acres",
+        "1", "2", "పావు", "అర", "ఒక", "ఎకరం", "ఎకర్",
+    ]
+
+    if not any(x in normalized for x in land_keywords):
         return _retry_or_end(session_id, "STATE_3")
 
     _log_exchange(session_id, "STATE_3", user_text_safe)
-
     sessions[session_id]["data"]["land_size"] = user_text_safe
     sessions[session_id]["retries"] = 0
     sessions[session_id]["state"] = "STATE_4"
-
     return STATE_4_PAYMENT
 
 def handle_state_4(session_id, user_text_low, user_text_safe):

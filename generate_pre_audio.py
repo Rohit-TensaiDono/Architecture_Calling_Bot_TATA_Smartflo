@@ -21,7 +21,7 @@ client = SarvamAI(
     api_subscription_key="sk_1egy7shz_foVYeKo9OrfrtR454ZagxTyw",
 )
 
-# All state texts to generate audio for (ODIA CONVERTED)
+# All state texts to generate audio
 STATES = {
 
     "STATE_1_GREETING": (
@@ -89,7 +89,7 @@ for name, text in STATES.items():
             text=text,
             target_language_code="te-IN",
             speaker="simran",
-            pace=1.1,
+            pace=1.085,
             speech_sample_rate=22050,
             enable_preprocessing=True,
             model="bulbul:v3"
