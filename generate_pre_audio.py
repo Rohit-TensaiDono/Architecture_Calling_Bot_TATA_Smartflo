@@ -21,7 +21,7 @@ client = SarvamAI(
     api_subscription_key="sk_1egy7shz_foVYeKo9OrfrtR454ZagxTyw",
 )
 
-# All state texts to generate audio for (ODIA CONVERTED)
+# All state texts to generate audio
 STATES = {
 
     "STATE_1_GREETING": (
@@ -68,6 +68,11 @@ STATES = {
         "ఉన్నతి ల్యాండ్ అండ్ Infra ను ఎంచుకున్నందుకు ధన్యవాదాలు!"
     ),
 
+    "STATE_PRICE_AND_PAYMENT": (
+        "మా ప్రాజెక్ట్ లో గజం భూమి ధర కేవలం వేయి రూపాయలు మాత్రమే. మీరు ఎంచుకునే విస్తీర్ణాన్ని బట్టి మొత్తం ధర ఉంటుంది. "
+        "మరి మీరు పూర్తి payment ఎలా చేయాలని అనుకుంటున్నారు? Full Payment లేదా EMI?"
+    ),
+
     "STATE_DISCONNECT": (
         " కాల్ ముగిసింది."
     )
@@ -89,7 +94,7 @@ for name, text in STATES.items():
             text=text,
             target_language_code="te-IN",
             speaker="simran",
-            pace=1.1,
+            pace=1.085,
             speech_sample_rate=22050,
             enable_preprocessing=True,
             model="bulbul:v3"

@@ -541,6 +541,9 @@ async def list_campaigns():
     result = await loop.run_in_executor(None, _smartflo_request, "GET", "/v1/dialer/campaign", None)
     return result
 
+@app.get("/check_status")
+async def check_status(request: Request):
+    return bot_module.check_status_eng()
 
 @app.get("/campaigns/{campaign_id}")
 async def get_campaign(campaign_id: str):
@@ -950,8 +953,39 @@ async def smartflo_webhook(request: Request):
 
     print("\n📞 SMARTFLO WEBHOOK HIT (Telugu BOT):")
     print(data)
-    batch_manager.on_provider_status(data)
 
+    # Voicemail / not-received detection
+    # "moderate_engagement" is what SmartFlo sends when iPhone drops to voicemail
+    disposition = (
+        str(data.get("disposition", ""))
+        or str(data.get("call_status", ""))
+        or str(data.get("status", ""))
+    ).lower()
+
+    NOT_RECEIVED_DISPOSITIONS = {
+        "voicemail",
+        "moderate_engagement",
+        "no_answer",
+        "not_reachable",
+        "not_received",
+        "busy",
+        "failed",
+        "unanswered",
+        "rejected",
+    }
+
+    if any(d in disposition for d in NOT_RECEIVED_DISPOSITIONS):
+        session_id = (
+            data.get("session_id")
+            or data.get("call_sid")
+            or data.get("callSid")
+            or data.get("streamSid")
+        )
+        if session_id:
+            db.complete_call(session_id, lead_data={}, status="not_received")
+            print(f"[Webhook] Marked not_received (disposition={disposition}) for {session_id}")
+
+    batch_manager.on_provider_status(data)
     return {"status": "received"}
 
 # ---------------------------------------------------------------------------
