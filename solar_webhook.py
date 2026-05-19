@@ -283,6 +283,12 @@ def check_status_eng():
 def is_positive(text):
     text = text.lower().strip()
 
+    # 1. ── CHECK PHRASES FIRST (Fixes multi-word bugs like "అవసరం లేదు") ──
+    negative_phrases = ["అవసరం లేదు", "నాకు వద్దు", "not interested", "don't want"]
+    if any(phrase in text for phrase in negative_phrases):
+        return False
+
+    # ── POSITIVE KEYWORDS ─────────────────────────────
     positives_exact = {
         "yes", "ok", "okay", "sure", "yeah", "yup", "yep", "fine", "alright",
         "go ahead", "tell me", "please tell", "continue", "proceed", "do it",
@@ -302,13 +308,13 @@ def is_positive(text):
         "hello", "hi", "నమస్కారం", "హలో", "नमस्ते", "ନମସ୍କାର", "ହ୍ୟାଲୋ",
     }
 
+    # ── NEGATIVE KEYWORDS (Added missing single words like "లేదు") ──────
     negatives_exact = {
-        "no", "nope",
-        "nahi", "na", "नहीं", "ना",
-        "ନା", "ନାହିଁ",
-        "కాదు", "వద్దు", "అవసరం లేదు",
+        "no", "nope", "not", "nahi", "na", "नहीं", "ना",
+        "ନା", "ନାହିଁ", "కాదు", "వద్దు", "లేదు", "అక్కర్లేదు"
     }
 
+    # 2. ── TOKEN CHECK ───────────────────────────────────
     words = text.split()
     has_positive = any(w in positives_exact for w in words)
     has_negative = any(w in negatives_exact for w in words)
@@ -317,8 +323,17 @@ def is_positive(text):
         return False
     if has_positive:
         return True
-    return True  # default: keep conversation moving
 
+    # 3. ── GEMINI FALLBACK (The Safety Net) ─────────────
+    global gemini_model
+    if gemini_model:
+        prompt = f"The user was asked if they want details about a real estate project. They replied: '{text}'. Does this mean YES or NO? Reply with exactly 'yes' or 'no'."
+        gemini_decision = _gemini_yes_no(prompt)
+        if gemini_decision is not None:
+            return gemini_decision
+
+    # 4. ── FINAL FALLBACK ──
+    return True
 
 def _detect_property_type(text):
     text = text.lower().strip()
