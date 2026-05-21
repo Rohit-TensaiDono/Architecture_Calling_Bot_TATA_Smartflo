@@ -419,6 +419,7 @@ def _detect_bill_range(text):
         # General low words & Contextual Fillers
         "తక్కువ", "లోపల", "లోపు", "వరకు", "దాకా", 
         "చాలా తక్కువ", "వందల్లో", "vandallo"
+        
     ]
     for kw in high_kw:
         if kw in text_lower: return "high"
