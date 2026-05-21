@@ -389,23 +389,36 @@ def _detect_bill_range(text):
     
     #  FIX: Massive expansion of very low bill keywords in English and Telugu
     very_low_kw = [
-        # The basics
-        "1000", "ek hazar", "వెయ్యి", 
+        # The basics & Shorthand
+        "1000", "ek hazar", "hazar", "వెయ్యి", "1k", "one k",
         
-        # "Under 1000" variations
-        "below 1000", "under 1000", "less than 1000",
-        "1000 lopala", "1000 లోపల", "వెయ్యి లోపల", "వెయ్యికి లోపల", "వెయ్యి కంటే తక్కువ",
+        # "Under 1000" variations (English & Hindi)
+        "below 1000", "under 1000", "less than 1000", 
+        "below one thousand", "under one thousand", "under 1k", "below 1k",
+        "hazar se kam", "hazar ke andar",
+        
+        # "Under 1000" variations (Telugu Conversational)
+        "1000 lopala", "1000 లోపల", "1000 lopu", "1000 లోపు", 
+        "1000 varaku", "1000 వరకు", "1000 దాకా",
+        "వెయ్యి లోపల", "వెయ్యికి లోపల", "వెయ్యి కంటే తక్కువ", 
+        "వెయ్యి లోపు", "వెయ్యి వరకు", "వెయ్యి దాకా",
 
-        "వేయి", "వెయి", "వయ్యి", "వెయ్", "వేయ్యి", "veyi", "veyyi",
+        # STT Typos & Phonetic Spellings for 1000
+        "వేయి", "వెయి", "వయ్యి", "వెయ్", "వేయ్యి", "veyi", "veyyi", 
+        "వెయ్య", "veyya", "వేయికి", "వెయ్యికి",
         
-        # Specific hundreds (Numbers)
-        "500", "600", "700", "800", "900",
+        # Specific hundreds (Numbers - Expanded full range)
+        "100", "200", "300", "400", "500", "600", "700", "800", "900",
         
-        # Specific hundreds (Telugu Spoken Words)
-        "ఐదొందలు", "ఆరొందలు", "ఏడొందలు", "ఎనిమిదొందలు", "తొమ్మిదొందలు", "ఐదు వందలు", "ఎనిమిది వందలు",
+        # Specific hundreds (Telugu Spoken & Sandhi/Joined Words)
+        "వంద", "రెండు వందలు", "మూడు వందలు", "నాలుగు వందలు", "ఐదు వందలు", 
+        "ఆరు వందలు", "ఏడు వందలు", "ఎనిమిది వందలు", "తొమ్మిది వందలు",
+        "రెండొందలు", "మూడొందలు", "నాలగొందలు", "ఐదొందలు", "ఆరొందలు", 
+        "ఏడొందలు", "ఎనిమిదొందలు", "తొమ్మిదొందలు",
         
-        # General low words
-        "తక్కువ", "వంద", "లోపల"
+        # General low words & Contextual Fillers
+        "తక్కువ", "లోపల", "లోపు", "వరకు", "దాకా", 
+        "చాలా తక్కువ", "వందల్లో", "vandallo"
     ]
     for kw in high_kw:
         if kw in text_lower: return "high"
