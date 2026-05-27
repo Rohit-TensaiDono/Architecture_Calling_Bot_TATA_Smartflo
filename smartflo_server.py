@@ -206,12 +206,12 @@ _sarvam_client = bot_module.sarvam_client
 
 
 def transcribe_mulaw(mulaw_data: bytes) -> str:
-    """Convert mu-law audio → WAV → text via Sarvam AI STT (primary) or Google STT (fallback)."""
+    """Convert mu-law audio → WAV → text via Sarvam AI STT ONLY (Hyper-fast)."""
     wav_bytes = audio_converter.mulaw_to_wav_bytes(mulaw_data)
     if not wav_bytes:
         return ""
 
-    # ── 1. Primary: Sarvam AI STT (saaras:v3 — best for Indian languages) ──
+    # ── Primary: Sarvam AI STT (saaras:v3 — best for Indian languages) ──
     try:
         import io
         response = _sarvam_client.speech_to_text.transcribe(
@@ -220,28 +220,18 @@ def transcribe_mulaw(mulaw_data: bytes) -> str:
             language_code="te-IN",
         )
         text = (response.transcript or "").strip()
+        
         if text:
             print(f"[Sarvam STT] '{text}'")
             return text
-        print("[Sarvam STT] Empty transcript — trying Google fallback")
+        else:
+            # If Sarvam hears nothing, instantly return empty instead of trying Google!
+            print("[Sarvam STT] Empty transcript (Silence/Noise detected)")
+            return ""
+            
     except Exception as e:
-        print(f"[Sarvam STT] Error: {e} — trying Google fallback")
-
-    # ── 2. Fallback: Google free STT ──
-    try:
-        import io
-        with sr.AudioFile(io.BytesIO(wav_bytes)) as src:
-            audio_data = _recognizer.record(src)
-        text = _recognizer.recognize_google(audio_data, language="te-IN")
-        print(f"[Google STT Fallback] '{text}'")
-        return text
-    except sr.UnknownValueError:
-        print("[Google STT Fallback] No speech detected")
+        print(f"[Sarvam STT] API Error: {e}")
         return ""
-    except Exception as e:
-        print(f"[Google STT Fallback] Error: {e}")
-        return ""
-
 
 def tts_to_mulaw(text: str) -> bytes:
     """
@@ -778,6 +768,7 @@ async def smartflo_ws(websocket: WebSocket):
                 continue
 
             # ── MEDIA (incoming caller audio) ──────────────────────────
+           # ── MEDIA (incoming caller audio) ──────────────────────────
             if event_type == "media":
                 if not session or not stream_sid:
                     continue
@@ -805,6 +796,17 @@ async def smartflo_ws(websocket: WebSocket):
                     user_text = await loop.run_in_executor(
                         None, transcribe_mulaw, ready_audio
                     )
+
+                    # 🚀 NEW: STT Hallucination Garbage Collector
+                    if user_text:
+                        # Catch the exact "ఓకే" loop bug from telecom static
+                        if user_text.count("ఓకే") > 5 or user_text.count("ok") > 5:
+                            print("[SmartFlo] 🚨 STT Hallucination (OK Loop) detected! Wiping text.")
+                            user_text = ""
+                        # Catch generic long repetitive gibberish (e.g., long text but only 1 to 3 unique words)
+                        elif len(user_text) > 80 and len(set(user_text.split())) < 4:
+                            print("[SmartFlo] 🚨 STT Gibberish loop detected! Wiping text.")
+                            user_text = ""
 
                     if not user_text:
                         print("[SmartFlo] No speech detected")
@@ -835,15 +837,36 @@ async def smartflo_ws(websocket: WebSocket):
 
                     # 2. Bot response (pure Python — instant, no async needed)
                     bot_reply = bot_module.ask_instant_ai(session_id, user_text=user_text)
-                    print(f"[SmartFlo] Bot reply: '{bot_reply[:60]}…'")
+                    
+                    # 🚀 UPGRADED: Handle Dynamic Generative Lists [Filler, DynamicText]
+                    if isinstance(bot_reply, list):
+                        filler_key = bot_reply[0]
+                        dynamic_text = bot_reply[1]
+                        
+                        print(f"[SmartFlo] Bot reply (Dynamic): '{dynamic_text[:60]}…'")
+                        
+                        # 3a. Send Filler Audio IMMEDIATELY
+                        await send_audio_to_smartflo(websocket, stream_sid, filler_key, bot_speaking, session_id, final=False)
+                        
+                        # 3b. Send the dynamically generated text seamlessly behind it
+                        state_before = bot_module.sessions.get(session_id, {}).get("state", "")
+                        is_final_reply = (state_before == "ENDED")
+                        await send_audio_to_smartflo(websocket, stream_sid, dynamic_text, bot_speaking, session_id, final=is_final_reply)
+                        
+                        if not is_final_reply:
+                            smartflo_service.get_buffered_audio(stream_sid)
+                            
+                    # ── EXISTING STATIC LOGIC ──
+                    else:
+                        print(f"[SmartFlo] Bot reply (Static): '{str(bot_reply)[:60]}…'")
 
-                    # 3. TTS → mu-law → stream back (mutes incoming during playback)
-                    # Check if this will be the final message BEFORE sending
-                    state_before = bot_module.sessions.get(session_id, {}).get("state", "")
-                    is_final_reply = (state_before == "ENDED")
-                    await send_audio_to_smartflo(websocket, stream_sid, bot_reply, bot_speaking, session_id, final=is_final_reply)
-                    if not is_final_reply:
-                        smartflo_service.get_buffered_audio(stream_sid)
+                        # 3. TTS → mu-law → stream back
+                        state_before = bot_module.sessions.get(session_id, {}).get("state", "")
+                        is_final_reply = (state_before == "ENDED")
+                        await send_audio_to_smartflo(websocket, stream_sid, bot_reply, bot_speaking, session_id, final=is_final_reply)
+                        
+                        if not is_final_reply:
+                            smartflo_service.get_buffered_audio(stream_sid)
 
                     # 4. If call ended by bot logic, close the stream
                     state = bot_module.sessions.get(session_id, {}).get("state", "")

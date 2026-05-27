@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from sarvamai import SarvamAI
 import base64
+import threading
 
 load_dotenv()
 
@@ -140,8 +141,8 @@ STATE_6_FINAL = (
 
 
 # ── Retry / Error Messages ────────────────────────────────────────────────────
-MAX_RETRIES = 3
-MAX_NO_SPEECH = 3
+MAX_RETRIES = 20
+MAX_NO_SPEECH = 20
 
 RETRY_PREFIX = "నేను సరిగ్గా అర్థం చేసుకోలేకపోయాను. "
 
@@ -160,6 +161,8 @@ RETRY_QUESTIONS = {
 
 # ── Pre-recorded audio mapping ────────────────────────────────────────────────
 PRE_RECORDED_AUDIO = {
+    "FILLER_WAIT": "static/pre_audio/FILLER_WAIT.wav",
+
     STATE_1_GREETING:  "static/pre_audio/STATE_1_GREETING.wav",
     STATE_1_NO_END:    "static/pre_audio/STATE_1_NO_END.wav",
     STATE_2_PROPERTY:  "static/pre_audio/STATE_2_PROPERTY.wav",
@@ -578,6 +581,8 @@ Classify:
 1TO3MONTHS = within 1–3 months
 ENQUIRY = just enquiry / later / not now
 
+CRITICAL RULE: If the user is asking a question (like asking about cost, space, battery, or technical details), you MUST reply with UNCLEAR.
+
 Reply ONLY: 1MONTH / 1TO3MONTHS / ENQUIRY / UNCLEAR
 """,
                 generation_config=genai.GenerationConfig(
@@ -708,16 +713,122 @@ Reply ONLY: FULL / LOAN / UNCLEAR
     return None
 
 
-def _retry_or_end(session_id, state):
-    """Handle retry: re-ask question up to MAX_RETRIES, then end gracefully."""
+# ── GENERATIVE AI ENGINE ──────────────────────────────────────────────────────
+def generate_dynamic_reply(session_id, user_text, current_state):
+    """Uses Gemini to generate a contextual, on-the-fly Telugu response."""
+    lead_data = sessions[session_id].get("data", {})
+    
+    prompt = f"""
+    You are Dipti, a polite Telugu sales agent for Mierae Solar.
+    If asked about the office location, you MUST explicitly say: "మా ఆఫీస్ విశాఖపట్నంలోని రైల్వే న్యూ కాలనీ దగ్గర ఉంది అండి."
+    The user just said: "{user_text}"
+    Current known lead data: {lead_data}
+    
+    Based on the current state ({current_state}), write a short, conversational 
+    Telugu response (max 2 sentences) to keep the conversation moving naturally. 
+    Do not use English words unless absolutely necessary.
+    """
+    
+    global gemini_model
+    if gemini_model:
+        try:
+            resp = gemini_model.generate_content(
+                prompt,
+                generation_config=genai.GenerationConfig(max_output_tokens=50, temperature=0.7)
+            )
+            track_tokens_usage(resp)
+            return resp.text.strip()
+        except Exception as e:
+            print(f"Dynamic Gen Error: {e}")
+            
+    # Ultimate Fallback if Gemini fails
+    return "క్షమించండి, సర్వర్ సమస్య ఉంది. దయచేసి మళ్లీ చెప్పండి."
+
+
+def _retry_or_end(session_id, state, user_text=""):
+    """Smart Fallback: Answers dynamic questions, then re-asks the state question."""
     retries = sessions[session_id].get("retries", 0) + 1
     sessions[session_id]["retries"] = retries
+    
+    # If they fail 3 times, drop the call politely
     if retries >= MAX_RETRIES:
         sessions[session_id]["state"] = "ENDED"
         sessions[session_id]["retries"] = 0
         return END_MISUNDERSTAND
-    question = RETRY_QUESTIONS.get(state, "")
-    return RETRY_PREFIX + question
+        
+    question_to_reask = RETRY_QUESTIONS.get(state, "")
+    
+    # 🚀 SMART GENERATIVE FALLBACK
+    global gemini_model
+    if gemini_model and user_text and len(user_text.split()) > 1:
+        try:
+            prompt = f"""
+            You are Dipti, a polite Telugu sales agent for Mierae Solar.
+            If asked about the office location, you MUST explicitly say: "మా ఆఫీస్ విశాఖపట్నంలోని రైల్వే న్యూ కాలనీ దగ్గర ఉంది అండి."
+            The user was asked: "{question_to_reask}"
+            Instead of answering, the user said: "{user_text}"
+            
+            1. If the user is asking a question about solar, answer it politely in 1 short Telugu sentence.
+            2. If it's a random statement, acknowledge it briefly.
+            3. If it's pure gibberish, just say "నాకు సరిగ్గా అర్థం కాలేదు." (I didn't understand).
+            
+            CRITICAL RULE: You MUST end your response by re-asking this exact question: "{question_to_reask}"
+            
+            Reply ONLY in Telugu. Do not use English script.
+            """
+            resp = gemini_model.generate_content(
+                prompt,
+                generation_config=genai.GenerationConfig(max_output_tokens=60, temperature=0.5)
+            )
+            track_tokens_usage(resp)
+            dynamic_text = resp.text.strip()
+
+            
+            # Return the list to trigger the instant FILLER AUDIO while it generates!
+            return ["FILLER_WAIT", dynamic_text]
+            
+        except Exception as e:
+            print(f"Smart Retry Error: {e}")
+
+    # Fallback to the old static retry if Gemini fails
+    return RETRY_PREFIX + question_to_reask
+
+def _handle_hybrid_question(session_id, next_state, user_text):
+    """Answers a custom question while successfully moving to the next state."""
+    
+    # Get the exact script question we need to ask next
+    next_question = RETRY_QUESTIONS.get(next_state, "")
+    
+    global gemini_model
+    if gemini_model:
+        try:
+            prompt = f"""
+            You are Dipti, a polite Telugu sales agent for Mierae Solar.
+            If asked about the office location, you MUST explicitly say: "మా ఆఫీస్ విశాఖపట్నంలోని రైల్వే న్యూ కాలనీ దగ్గర ఉంది అండి."
+            The user just answered our previous question, but they ALSO asked a custom question inside this text: "{user_text}"
+            
+            1. Briefly answer their custom question in 1 short Telugu sentence.
+            2. IMMEDIATELY move the conversation forward by asking this exact next script question: "{next_question}"
+            
+            CRITICAL RULE: You must end your response with that exact script question. 
+            Reply ONLY in Telugu. Do not use English script.
+            """
+            
+            resp = gemini_model.generate_content(
+                prompt,
+                generation_config=genai.GenerationConfig(max_output_tokens=60, temperature=0.5)
+            )
+            
+            dynamic_text = resp.text.strip()
+            
+            # Return the filler + dynamic text combo!
+            return ["FILLER_WAIT", dynamic_text]
+            
+        except Exception as e:
+            print(f"Hybrid Retry Error: {e}")
+
+    # If Gemini fails, safely fall back to the static audio for the next state
+    return RETRY_PREFIX + next_question
 
 
 def handle_user_input(session, user_text):
@@ -725,7 +836,6 @@ def handle_user_input(session, user_text):
     Wrapper for local testing (voice pipeline).
     Converts session dict → session_id system.
     """
-
     from db import db
 
     # ── SESSION ID ───────────────────────────────
@@ -752,7 +862,6 @@ def handle_user_input(session, user_text):
     # 🚨 HARD STOP — PREVENT REPEATED "THANK YOU"
     if sessions[session_id]["state"] in ("STATE_6", "ENDED"):
         print(f"[INFO] Ignoring input — session already ended ({session_id})")
-
         return {
             "text": "",
             "audio_path": "",
@@ -766,8 +875,25 @@ def handle_user_input(session, user_text):
     else:
         bot_reply = ask_instant_ai(session_id, user_text=user_text)
 
+    # 🚀 FIX: UNPACK DYNAMIC LISTS TO PREVENT CRASH
+    if isinstance(bot_reply, list):
+        # We ignore the filler audio here because the local wrapper 
+        # only expects a single final audio path to play.
+        dynamic_text = bot_reply[1]
+        
+        audio_path = f"static/reply_{session_id}.wav"
+        text_to_speech_te(dynamic_text, audio_path)
+        
+        return {
+            "text": dynamic_text,  # Return actual string, not the list
+            "audio_path": audio_path,
+            "end": False
+        }
+
+    # ── STATIC LOGIC ─────────────────────────────
+    
     # 🚨 IF THIS RESPONSE ENDS CALL → MARK IT
-    if bot_reply in (STATE_6_CLOSING, STATE_DISCONNECT):
+    if bot_reply in (STATE_6_CLOSING, STATE_DISCONNECT, STATE_6_FINAL):
         sessions[session_id]["state"] = "ENDED"
 
     # ── AUDIO HANDLING ───────────────────────────
@@ -782,7 +908,6 @@ def handle_user_input(session, user_text):
         "audio_path": audio_path,
         "end": sessions[session_id]["state"] == "ENDED"
     }
-
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -907,12 +1032,17 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
             }
 
     # Helper: log a completed Q&A exchange to DB
+   # 🚀 UPGRADE: Run translation in the background so it never delays the phone call!
     def _log_exchange(answer: str):
-        """Log (question asked in this state, user's answer) to the DB."""
-        turn = sessions[session_id]["turn"] + 1
-        sessions[session_id]["turn"] = turn
-        question_text = _STATE_QUESTION_MAP_EN.get(state, state)
-        db.add_exchange(session_id, question_text, _translate_to_english(answer), state, turn)
+        def _background_task():
+            turn = sessions[session_id]["turn"] + 1
+            sessions[session_id]["turn"] = turn
+            question_text = _STATE_QUESTION_MAP_EN.get(state, state)
+            translated_answer = _translate_to_english(answer)
+            db.add_exchange(session_id, question_text, translated_answer, state, turn)
+            
+        # Fire and forget
+        threading.Thread(target=_background_task).start()
 
 
 
@@ -920,6 +1050,7 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
     def _finish_call(status="completed"):
         lead = sessions[session_id].get("data", {})
         db.complete_call(session_id, lead_data=lead, status=status)
+
 
     # ── STATE_1: Opening — interested in solar info? ──────────────────────────
     if state == "STATE_1":
@@ -938,57 +1069,79 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
     elif state == "STATE_2":
         prop = _detect_property_type(user_text_low)
         if prop is None:
-            return _retry_or_end(session_id, "STATE_2")
+            return _retry_or_end(session_id, "STATE_2", user_text_safe)
+            
         _log_exchange(user_text_safe)
         sessions[session_id]["data"]["property_type"] = prop
         sessions[session_id]["retries"] = 0
         sessions[session_id]["state"] = "STATE_3"
+        
+        # 🚀 HYBRID INTERCEPT: Did they ask an extra question? (More than 5 words)
+        if len(user_text_safe.split()) > 5:
+            return _handle_hybrid_question(session_id, "STATE_3", user_text_safe)
+            
         return STATE_3_BILL
 
     # ── STATE_3: Monthly Bill Range ───────────────────────────────────────────
     elif state == "STATE_3":
         bill = _detect_bill_range(user_text_low)
         if bill is None:
-            return _retry_or_end(session_id, "STATE_3")
+            return _retry_or_end(session_id, "STATE_3", user_text_safe)
             
         _log_exchange(user_text_safe)
-        
         sessions[session_id]["data"]["bill_range"] = bill
         sessions[session_id]["retries"] = 0
         sessions[session_id]["state"] = "STATE_4"
         
-        # 🚀 NEW: If the bill is under 1000, play the encouraging combo message!
+        # 🚀 NEW: If the bill is under 1000, handle custom combo message
         if bill == "very_low":
+            if len(user_text_safe.split()) > 5:
+                return _handle_hybrid_question(session_id, "STATE_4", user_text_safe)
             return STATE_3_LOW_BILL_CONTINUE
 
         # Normal path for all other bills (> 1000)
+        if len(user_text_safe.split()) > 5:
+            return _handle_hybrid_question(session_id, "STATE_4", user_text_safe)
+            
         return STATE_4_TIMELINE
 
-    # ── STATE_4: Timeline ─────────────────────────────────────────────────────
+   # ── STATE_4: Timeline ─────────────────────────────────────────────────────
     elif state == "STATE_4":
         timeline = _detect_timeline(user_text_low)
+        
         if timeline is None:
-            return _retry_or_end(session_id, "STATE_4")
+            return _retry_or_end(session_id, "STATE_4", user_text_safe)
+            
+        # 🚀 THE NEW FIX: If it was classified as an enquiry, BUT they asked a long question, 
+        # intercept it and answer their question instead of hanging up!
+        if timeline == "enquiry" and len(user_text_safe.split()) > 5:
+            print("[Hybrid Intercept] Saved call from accidental enquiry drop!")
+            return _handle_hybrid_question(session_id, "STATE_4", user_text_safe)
             
         _log_exchange(user_text_safe)
         sessions[session_id]["data"]["timeline"] = timeline
         
-        # 🚀 NEW: If they just want info, drop the call politely!
+        # Now, if it truly is just a short enquiry (e.g., "సమాచారం కోసం మాత్రమే" - 3 words), drop the call.
         if timeline == "enquiry":
             sessions[session_id]["state"] = "ENDED"
             _finish_call(status="enquiry_only")
             return STATE_4_ENQUIRY_END
 
-        # Normal path: If they want to install in 1 to 3 months, ask for payment details
+        # Normal path: Moving to Payment
         sessions[session_id]["retries"] = 0
         sessions[session_id]["state"] = "STATE_5"
+        
+        # 🚀 HYBRID INTERCEPT for normal answers
+        if len(user_text_safe.split()) > 5:
+            return _handle_hybrid_question(session_id, "STATE_5", user_text_safe)
+            
         return STATE_5_PAYMENT
 
     # ── STATE_5: Payment Preference ───────────────────────────────────────────
     elif state == "STATE_5":
         payment = _detect_payment(user_text_low)
         if payment is None:
-            return _retry_or_end(session_id, "STATE_5")
+            return _retry_or_end(session_id, "STATE_5", user_text_safe)
 
         _log_exchange(user_text_safe)
         sessions[session_id]["data"]["payment"] = payment
@@ -997,20 +1150,19 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
         print(f"[Session {session_id}] Lead Data: {sessions[session_id]['data']}")
         _finish_call(status="completed")
 
-        # ✅ DIRECTLY END
+        # We don't need a hybrid check here because the call is successfully over!
         sessions[session_id]["state"] = "ENDED"
-
-        # ✅ SEND BOTH MESSAGES
-        #return STATE_6_CLOSING + " " + STATE_DISCONNECT
-
-        # 🚀 FIX: Return the pre-recorded combo string instead of doing math
         return STATE_6_FINAL
-
+    
+    elif state == "STATE_DYNAMIC_QA":
+        dynamic_text = generate_dynamic_reply(session_id, user_text_safe, "Answering solar efficiency questions")
+        return ["FILLER_WAIT", dynamic_text]
 
     # ── STATE_6: Closing / any further input ─────────────────────────────────
     elif state in ("STATE_6", "ENDED"):
         sessions[session_id]["state"] = "ENDED"
         return STATE_DISCONNECT
+    
 
     return STATE_1_GREETING
 
@@ -1179,9 +1331,33 @@ def webhook():
     sessions[session_id]["no_speech"] = 0
 
     bot_reply = ask_instant_ai(session_id, user_text=user_text)
-    print(f"[Session {session_id}] Bot Reply: {bot_reply[:60]}...")
+    
+    # 🚀 FIXED: Wrapped in str() to prevent slicing errors if bot_reply is a list
+    print(f"[Session {session_id}] Bot Reply: {str(bot_reply)[:60]}...")
 
-    if bot_reply in PRE_RECORDED_AUDIO:
+    # 🚀 UPGRADED: Handle Dynamic Generative Lists [Filler, DynamicText]
+    if isinstance(bot_reply, list):
+        filler_key = bot_reply[0]
+        dynamic_text = bot_reply[1]
+        
+        # 1. Grab the instant filler audio to play immediately
+        filler_url = f"/{PRE_RECORDED_AUDIO[filler_key]}"
+        
+        # 2. Generate the slow dynamic audio in the background
+        bot_audio_path = f"static/reply_{session_id}.wav"
+        text_to_speech_te(dynamic_text, bot_audio_path)
+        audio_url = f"/{bot_audio_path}"
+        
+        return jsonify({
+            "text": user_text,
+            "answer": dynamic_text,
+            "audio_url": audio_url,
+            "filler_url": filler_url, # Pass filler to telephony server
+            "tokens": gemini_tokens
+        })
+
+    # ── EXISTING STATIC LOGIC ──
+    elif bot_reply in PRE_RECORDED_AUDIO:
         audio_url = f"/{PRE_RECORDED_AUDIO[bot_reply]}"
     else:
         bot_audio_path = f"static/reply_{session_id}.wav"
