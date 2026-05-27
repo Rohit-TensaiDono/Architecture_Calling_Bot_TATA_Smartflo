@@ -96,7 +96,7 @@ for name, text in STATES.items():
         response = client.text_to_speech.convert(
             text=text,
             target_language_code="te-IN",
-            speaker="simran",
+            speaker="ritu",
             pace=1.085,
             speech_sample_rate=22050,
             enable_preprocessing=True,

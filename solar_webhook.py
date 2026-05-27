@@ -856,7 +856,7 @@ def text_to_speech_te(text, output_path):
             text=text,
             target_language_code="te-IN",
             speaker="ritu",
-            pace=1.2,
+            pace=1.09,
             speech_sample_rate=22050,
             enable_preprocessing=True,
             model="bulbul:v3",

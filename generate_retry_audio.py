@@ -39,7 +39,7 @@ for text, output_path in texts_to_generate.items():
         response = client.text_to_speech.convert(
             text=text,
             target_language_code="te-IN", 
-            speaker="simran",
+            speaker="ritu",
             pace=1.9,
             speech_sample_rate=22050,
             enable_preprocessing=True,
