@@ -540,3 +540,4 @@ This URL must be reachable by SmartFlo to open the WebSocket connection. SmartFl
 **STATE_3 price handling:** A specific bug fix documented in code comments. If a user asks "what's the price?" in State 3 (land size question), the old code would advance to State 4 (payment) without collecting land size. The fix: price-only responses stay in State 3. Size-only or size+price responses advance to State 4.
 
 ---
+
