@@ -78,7 +78,7 @@ sessions = {}
 
 STATE_1_GREETING = (
     "నమస్కారం, హైదరాబాద్ ఔటర్ రింగ్ రోడ్ ఎగ్జిట్ ౫ కి జస్ట్ ఒక నిమిషం దూరంలో "
-    "ప్రీమియం ఫ్లాట్స్ స్క్వేర్ ఫీట్ కేవలం ౪,౫౦౦ రూపాయలు మాత్రమే. "
+    "ప్రీమియం ఫ్లాట్స్ స్క్వేర్ ఫీట్ కేవలం ౫,౫౦౦ రూపాయలు మాత్రమే. "
     "డిసెంబర్ ౨౦౨౬ కి హ్యాండోవర్. "
     "మీరు వివరాలు తెలుసుకోవాలనుకుంటున్నారా?"
 )
@@ -127,7 +127,7 @@ STATE_7_CLOSING = (
 # which meant it never matched any PRE_RECORDED_AUDIO key.
 # Now it is a named constant so the lookup always works correctly.
 STATE_PRICE_AND_PROPERTY = (
-    "మా ప్రాజెక్ట్‌లో స్క్వేర్ ఫీట్ ధర కేవలం ౪,౫౦౦ రూపాయలు మాత్రమే. "
+    "మా ప్రాజెక్ట్‌లో స్క్వేర్ ఫీట్ ధర కేవలం ౫,౫౦౦ రూపాయలు మాత్రమే. "
     "మీరు రెండు బెడ్‌రూమ్ అపార్ట్‌మెంట్ కావాలనుకుంటున్నారా "
     "లేక మూడు బెడ్‌రూమ్ డూప్లెక్స్ విల్లా కావాలనుకుంటున్నారా?"
 )
@@ -727,7 +727,7 @@ _STATE_QUESTION_MAP_EN = {
     "STATE_1": (
         "Hello! I am calling from Sanarelli. "
         "Premium flats near Hyderabad Outer Ring Road Exit 5, just 1 minute away. "
-        "Price: ₹4,500 per sq ft. Handover: December 2026. "
+        "Price: ₹5,500 per sq ft. Handover: December 2026. "
         "Would you like to know more details?"
     ),
     "STATE_2": "Are you looking for a new home in Hyderabad or is this for investment?",
