@@ -575,12 +575,36 @@ def handle_state_3(session_id, user_text_low, user_text_safe):
         "ఎంత", "ధర", "రేటు", "ఖర్చు",
         "entha", "dhara", "retu", "karchu", "enta", "costu", "ratu",
     ]
+
     size_keywords = [
-    "2bhk", "3bhk", "2 bhk", "3 bhk", "two bhk", "three bhk",
-    "అపార్ట్‌మెంట్", "విల్లా", "డూప్లెక్స్",
-    "apartment", "villa", "duplex", "flat",
-    "రెండు బెడ్‌రూమ్", "మూడు బెడ్‌రూమ్",
-    ]
+        "2bhk", "3bhk", "2 bhk", "3 bhk", "two bhk", "three bhk",
+        # STT mishears/truncates
+        "2bk", "3bk", "2 bk", "3 bk",
+        "2bh", "3bh",
+        "2b", "3b",
+        "two bk", "three bk",
+        "2hk", "3hk",
+        "do bhk", "teen bhk",
+        "రెండు", "మూడు",          # STT gives just the number word
+        "2 bedroom", "3 bedroom", "two bedroom", "three bedroom",
+        "అపార్ట్‌మెంట్", "విల్లా", "డూప్లెక్స్",
+        "apartment", "villa", "duplex", "flat",
+        "రెండు బెడ్‌రూమ్", "మూడు బెడ్‌రూమ్",
+        ]
+
+    def _matches_size(text):
+        # exact keyword match
+        if any(kw in text for kw in size_keywords):
+            return True
+        # catch anything like "2b..k", "3b..k" with noise in between
+        if re.search(r'[23]\s*b\w{0,4}k', text):
+            return True
+        # catch "two/three" followed by any room-related word within 3 words
+        if re.search(r'\b(two|three|2|3)\b.{0,20}\b(room|bed|flat|unit|apt)\b', text):
+            return True
+        return False
+
+    gave_size = _matches_size(user_text_low)
 
     asking_price = any(kw in user_text_low for kw in price_keywords)
     gave_size    = any(kw in user_text_low for kw in size_keywords)
