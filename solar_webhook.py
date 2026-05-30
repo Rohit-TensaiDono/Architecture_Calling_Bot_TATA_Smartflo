@@ -127,6 +127,8 @@ STATE_6_CLOSING = (
     "మీరై సోలార్ ను ఎంచుకున్నందుకు ధన్యవాదాలు! మీ రోజు మంచిగా గడవాలి."
 )
 
+STATE_LOCATION = "మా ఆఫీస్ విశాఖపట్నంలోని రైల్వే న్యూ కాలనీ దగ్గర ఉంది అండి."
+
 STATE_DISCONNECT = "ధన్యవాదాలు. కాల్ ముగిసింది."
 
 
@@ -141,8 +143,8 @@ STATE_6_FINAL = (
 
 
 # ── Retry / Error Messages ────────────────────────────────────────────────────
-MAX_RETRIES = 20
-MAX_NO_SPEECH = 20
+MAX_RETRIES = 3
+MAX_NO_SPEECH = 3
 
 RETRY_PREFIX = "నేను సరిగ్గా అర్థం చేసుకోలేకపోయాను. "
 
@@ -161,7 +163,7 @@ RETRY_QUESTIONS = {
 
 # ── Pre-recorded audio mapping ────────────────────────────────────────────────
 PRE_RECORDED_AUDIO = {
-    "FILLER_WAIT": "static/pre_audio/FILLER_WAIT.wav",
+    STATE_LOCATION: "static/pre_audio/STATE_LOCATION.wav",
 
     STATE_1_GREETING:  "static/pre_audio/STATE_1_GREETING.wav",
     STATE_1_NO_END:    "static/pre_audio/STATE_1_NO_END.wav",
@@ -202,10 +204,15 @@ def is_positive(text):
         "बताओ", "बताइए", "कहिए", "समझाइए", "करो", "कीजिए",
         "ହଁ", "ହାଁ", "ଠିକ୍", "ଠିକ", "ହଁ ଠିକ୍", "ଚାହୁଁଛି",
         "କୁହ", "କୁହନ୍ତୁ", "କହ", "ବୁଝା", "କର", "କରନ୍ତୁ",
+
+
         "అవును", "అవునండి", "సరే", "ఓకే", "ఓకే అండి",
         "కావాలి", "చెప్పండి", "చెప్పు", "వివరించండి",
         "చెప్పండి అండి", "మాట్లాడండి", "చెప్పండి ప్లీజ్",
-        "అవును చెప్పండి", "సరే చెప్పండి",
+        "అవును చెప్పండి", "సరే చెప్పండి", "హా", "హాన్", "సరేనండి", "ఆ", "ఊ", 
+        "వినాలనుకుంటున్నాను", "పర్వాలేదు", "కంటిన్యూ చేయండి", "వివరాలు చెప్పండి", 
+        "తెలుసుకోవాలి", "ఇంట్రెస్ట్ ఉంది", "ఎస్", "ఎస్రండి"
+
         "haan bolo", "haan batao", "ok bolo", "ok batao",
         "bolo", "batao", "samjhao", "samjha do",
         "haan ji bataiye", "haan ji boliye",
@@ -216,11 +223,13 @@ def is_positive(text):
     # ── NEGATIVE KEYWORDS (Added missing single Telugu words) ──
     negatives_exact = {
         "no", "nope", "not", "nahi", "na", "नहीं", "ना",
-        "ନା", "ନାହିଁ", "కాదు", "వద్దు", "లేదు", "అక్కర్లేదు"
+        "ନା", "ନାହିଁ", "కాదు", "వద్దు", "లేదు", "అక్కర్లేదు", "వద్దండి", "లేదండి", 
+        "పెట్టేయ్", "పెట్టేయండి", "నో"
     }
 
     # 1. ── CHECK PHRASES FIRST (Fixes the multi-word bug) ──
-    negative_phrases = ["అవసరం లేదు", "నాకు వద్దు", "not interested", "don't want"]
+    negative_phrases = ["అవసరం లేదు", "నాకు వద్దు", "not interested", "don't want",
+        "ఇంట్రెస్ట్ లేదు", "టైమ్ లేదు", "కాల్ చేయకండి", "నాట్ ఇంట్రెస్టెడ్"]
     if any(phrase in text for phrase in negative_phrases):
         return False
 
@@ -249,77 +258,80 @@ def is_positive(text):
 
 def _detect_property_type(text):
     """Returns 'independent', 'apartment', 'commercial', or None."""
-    text = text.lower().strip()
+    text_clean = text.lower().strip()
 
     # ── NORMALIZE TEXT ────────────────────────────────
-    text = (
-        text.replace(".", " ")
+    text_clean = (
+        text_clean.replace(".", " ")
         .replace(",", " ")
         .replace("।", " ")
         .replace("?", " ")
     )
+    
+    # 🚀 Create a spaceless version to catch STT joined words
+    text_spaceless = text_clean.replace(" ", "")
 
-    # ── KEYWORDS ─────────────────────────────────────
-
+    # ── KEYWORDS (All Languages Preserved) ────────────
     independent_kw = [
         # English
         "independent", "house", "home", "villa", "bungalow", "plot",
-
         # Hindi
         "ghar", "मकान", "घर", "kothi", "खुद का घर",
-
         # Odia
         "ଘର", "ସ୍ୱତନ୍ତ୍ର", "ନିଜ ଘର", "ଭିଲା",
-
-        # Telugu
-        "ఇల్లు", "సొంత ఇల్లు","స్వంత ఇల్లు", "హౌస్", "విల్లా", "బంగ్లా"
+        
+        # 🚀 Telugu (Phonetic Roots & Full Words)
+        "ఇల్లు", "హౌస్", "విల్లా", "మాదే", "పోర్షన్",
+        "సొంత", "స్వంత", "సంత", "సంధి",  # <-- The Magic Phonetic Roots!
+        "ఇల్లే", "సొంతి", "స్వంతి", "సంతి",
+        "సొంత ఇల్లు", "స్వంత ఇల్లు", "సొంతిల్లు", "స్వంతిల్లు", 
+        "సొంత ఇల్లే", "స్వంత ఇల్లే", "మాది సొంతిల్లు", "నా సొంత ఇల్లు", 
+        "నాది సొంతిల్లు", "సొంత ఇల్లు అండి", "ఇండిపెండెంట్", "హవుస్", "మా సొంత ఇల్లు",
+        "సొంత ఇల్లేనండి", "మాదేనండి"
     ]
 
     apartment_kw = [
         # English
         "apartment", "flat", "flats", "building", "society",
-
         # Hindi
         "अपार्टमेंट", "फ्लैट",
-
         # Odia
         "ଆପାର୍ଟମେଣ୍ଟ", "ଫ୍ଲାଟ", "ବିଲ୍ଡିଂ",
-
         # Telugu
-        "అపార్ట్‌మెంట్", "ఫ్లాట్", "బిల్డింగ్", "సొసైటీ"
+        "అపార్ట్‌మెంట్", "అపార్ట్మెంట్", "ఫ్లాట్", "బిల్డింగ్", "ప్లాట్", "ప్లాట్స్", 
+        "అపార్ట్ మెంట్", "అపార్ట్మెంట్లో", "అపార్ట్మెంట్స్", "ఫ్లాట్స్", "ఫ్లాట్ లో", "సొసైటీ", 
+        "భవనం", "సముదాయం", "కాంప్లెక్స్", "అపార్టుమెంటు", "గేటెడ్ కమ్యూనిటీ"
     ]
 
     commercial_kw = [
         # English
         "commercial", "shop", "office", "factory", "warehouse", "mall", "showroom",
-
         # Hindi
         "dukan", "दुकान", "ऑफिस",
-
         # Odia
         "ଦୋକାନ", "ଅଫିସ", "କମର୍ସିଆଲ", "କାରଖାନା",
-
         # Telugu
         "దుకాణం", "ఆఫీస్", "కమర్షియల్", "ఫ్యాక్టరీ", "గోదాం", "షోరూమ్"
     ]
 
-    # ── SCORING MATCH ────────────────────────────────
+    # ── SCORING MATCH (Upgraded with Spaceless logic) ──
     scores = {
         "independent": 0,
         "apartment": 0,
         "commercial": 0
     }
 
+    # 🚀 It checks the normal sentence, AND the spaceless sentence
     for kw in independent_kw:
-        if kw in text:
+        if kw in text_clean or kw.replace(" ", "") in text_spaceless:
             scores["independent"] += 1
 
     for kw in apartment_kw:
-        if kw in text:
+        if kw in text_clean or kw.replace(" ", "") in text_spaceless:
             scores["apartment"] += 1
 
     for kw in commercial_kw:
-        if kw in text:
+        if kw in text_clean or kw.replace(" ", "") in text_spaceless:
             scores["commercial"] += 1
 
     # ── DECISION BASED ON MAX SCORE ───────────────────
@@ -328,7 +340,9 @@ def _detect_property_type(text):
     if scores[best] > 0:
         return best
 
-    # ── GEMINI FALLBACK (UPDATED FOR TELUGU) ──────────
+    # ── GEMINI FALLBACK ───────────────────────────────
+    # (Kept intact just in case, though the spaceless check will catch almost everything!)
+    global gemini_model
     if gemini_model:
         try:
             resp = gemini_model.generate_content(
@@ -386,10 +400,22 @@ def _detect_bill_range(text):
             return "very_low"
 
     # ── KEYWORD MATCHING ─────────────────────────────
-    high_kw = ["high", "above 5000", "more than 5000", "paanch hazar", "zyada", "ఐదు వేల", "ఎక్కువ", "పైన"]
-    mid_kw = ["2000", "3000", "4000", "around 3", "do hazar", "teen hazar", "రెండు వేల", "మూడు వేల", "నాలుగు వేల"]
-    low_kw = ["1500", "around 2"] #  Removed 1000 from here
-    
+    high_kw = [
+        "high", "above 5000", "more than 5000", "zyada", 
+        "ఐదు వేల పైన", "ఐదు వేల కంటే ఎక్కువ", "ఎక్కువే", "చాలా ఎక్కువ", "పైన", 
+        "ఐదుకి పైన", "పది వేలు", "ఆరు వేలు", "ఏడు వేలు", "ఐదు వేలకి పైనే"
+    ]
+    mid_kw = [
+        "2000", "3000", "4000", "around 3", 
+        "రెండు వేల", "మూడు వేల", "నాలుగు వేల", "రెండు వేలు", "మూడు వేలు", "నాలుగు వేలు", 
+        "ఐదు వేల లోపు", "ఐదు వేల లోపల", "రెండు నుంచి ఐదు", "రెండు ఐదు మధ్యలో", 
+        "మూడు వేల దాకా", "రెండుకి ఐదుకి మధ్య"
+    ]
+    low_kw = [
+        "1500", "around 2", 
+        "పదిహేను వందలు", "పదిహేనొందలు", "వెయ్యికి రెండు వేలకి మధ్య", 
+        "రెండు వేల లోపు", "రెండు వేల లోపల", "వెయ్యి పైన", "రెండు వేలకి తక్కువ"
+    ]
     #  FIX: Massive expansion of very low bill keywords in English and Telugu
     very_low_kw = [
         # The basics & Shorthand
@@ -490,7 +516,8 @@ def _detect_timeline(text):
         "ଏକ ମାସ", "ତୁରନ୍ତ", "ସତ୍ତ୍ୱର", "ଏବେ", "ଶୀଘ୍ର",
 
         # Telugu
-        "ఒక నెల", "తక్షణం", "ఇప్పుడే", "త్వరగా"
+       "ఒక నెల", "తక్షణం", "ఇప్పుడే", "త్వరగా", "నెలలోపు", "నెలలోపల", "వెంటనే", 
+        "ఈ నెలే", "ఒక్క నెల", "నెల రోజుల్లో", "వీలైనంత త్వరగా", "వెంటనే కావాలి", "త్వరలో"
     ]
 
     medium_kw = [
@@ -505,7 +532,8 @@ def _detect_timeline(text):
         "ଦୁଇ ମାସ", "ତିନି ମାସ", "1-3 ମାସ", "କିଛି ମାସ",
 
         # Telugu
-        "రెండు నెలలు", "మూడు నెలలు", "2-3 నెలలు", "కొన్ని నెలలు"
+        "రెండు నెలలు", "మూడు నెలలు", "2-3 నెలలు", "కొన్ని నెలలు", "ఒకటి రెండు నెలలు", 
+        "రెండు మూడు నెలలు", "టైం పడుతుంది", "మూడు నెలల లోపు", "రెండు నెలల లోపు"
     ]
 
     enquiry_kw = [
@@ -519,7 +547,9 @@ def _detect_timeline(text):
         "ପରେ", "ଭବିଷ୍ୟତ", "ଚିନ୍ତା", "ଦେଖିବା", "ଏବେ ନୁହେଁ", "କେବଳ ପଚାରୁଛି",
 
         # Telugu
-        "తర్వాత", "భవిష్యత్", "చూద్దాం", "ఇప్పుడే కాదు", "కేవలం అడుగుతున్నాను"
+        "తర్వాత", "భవిష్యత్", "చూద్దాం", "ఇప్పుడే కాదు", "కేవలం అడుగుతున్నాను", 
+        "కేవలం సమాచారం", "సమాచారం కోసం", "కనుక్కుంటున్నాను", "ఇంకా ఆలోచించలేదు", 
+        "ప్రస్తుతానికి వద్దు", "వివరాలు తెలుసుకుందామని", "ఇన్ఫర్మేషన్ కోసం"
     ]
 
     # ── SCORING SYSTEM ───────────────────────────────
@@ -633,7 +663,8 @@ def _detect_payment(text):
         "ପୁରା", "ଏକଥରେ", "ନକଦ", "ସମ୍ପୂର୍ଣ୍ଣ",
 
         # Telugu
-        "పూర్తి", "ఒకేసారి", "నగదు", "ఫుల్", "క్యాష్"
+        "పూర్తి", "ఒకేసారి", "నగదు", "ఫుల్", "క్యాష్", "మొత్తం ఒకేసారి", 
+        "మొత్తం కట్టేస్తాం", "లమ్ సమ్", "లంసంగా", "ఫుల్ పేమెంట్", "చేతి డబ్బులు", "అప్పు వద్దు"
     ]
 
     # LOAN / EMI
@@ -648,7 +679,8 @@ def _detect_payment(text):
         "ଲୋନ୍", "ଇଏମଆଇ", "ବ୍ୟାଙ୍କ", "କିଷ୍ତି",
 
         # Telugu
-        "లోన్", "ఈఎంఐ", "బ్యాంక్", "కిస్తీ", "ఫైనాన్స్"
+        "లోన్", "ఈఎంఐ", "బ్యాంక్", "కిస్తీ", "ఫైనాన్స్", "లోన్ ద్వారా", 
+        "ఇయంఐ", "ఈయమ్ఐ", "లోను", "అప్పు చేసి", "బ్యాంక్ లోన్", "నెల నెలా"
     ]
 
     # ── SCORING SYSTEM ───────────────────────────────
@@ -713,122 +745,22 @@ Reply ONLY: FULL / LOAN / UNCLEAR
     return None
 
 
-# ── GENERATIVE AI ENGINE ──────────────────────────────────────────────────────
-def generate_dynamic_reply(session_id, user_text, current_state):
-    """Uses Gemini to generate a contextual, on-the-fly Telugu response."""
-    lead_data = sessions[session_id].get("data", {})
-    
-    prompt = f"""
-    You are Dipti, a polite Telugu sales agent for Mierae Solar.
-    If asked about the office location, you MUST explicitly say: "మా ఆఫీస్ విశాఖపట్నంలోని రైల్వే న్యూ కాలనీ దగ్గర ఉంది అండి."
-    The user just said: "{user_text}"
-    Current known lead data: {lead_data}
-    
-    Based on the current state ({current_state}), write a short, conversational 
-    Telugu response (max 2 sentences) to keep the conversation moving naturally. 
-    Do not use English words unless absolutely necessary.
-    """
-    
-    global gemini_model
-    if gemini_model:
-        try:
-            resp = gemini_model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(max_output_tokens=50, temperature=0.7)
-            )
-            track_tokens_usage(resp)
-            return resp.text.strip()
-        except Exception as e:
-            print(f"Dynamic Gen Error: {e}")
-            
-    # Ultimate Fallback if Gemini fails
-    return "క్షమించండి, సర్వర్ సమస్య ఉంది. దయచేసి మళ్లీ చెప్పండి."
+
 
 
 def _retry_or_end(session_id, state, user_text=""):
-    """Smart Fallback: Answers dynamic questions, then re-asks the state question."""
+    """100% Static Fallback: Re-asks the state question without AI latency."""
     retries = sessions[session_id].get("retries", 0) + 1
     sessions[session_id]["retries"] = retries
     
-    # If they fail 3 times, drop the call politely
+    # If they fail too many times, drop the call politely
     if retries >= MAX_RETRIES:
         sessions[session_id]["state"] = "ENDED"
         sessions[session_id]["retries"] = 0
         return END_MISUNDERSTAND
         
     question_to_reask = RETRY_QUESTIONS.get(state, "")
-    
-    # 🚀 SMART GENERATIVE FALLBACK
-    global gemini_model
-    if gemini_model and user_text and len(user_text.split()) > 1:
-        try:
-            prompt = f"""
-            You are Dipti, a polite Telugu sales agent for Mierae Solar.
-            If asked about the office location, you MUST explicitly say: "మా ఆఫీస్ విశాఖపట్నంలోని రైల్వే న్యూ కాలనీ దగ్గర ఉంది అండి."
-            The user was asked: "{question_to_reask}"
-            Instead of answering, the user said: "{user_text}"
-            
-            1. If the user is asking a question about solar, answer it politely in 1 short Telugu sentence.
-            2. If it's a random statement, acknowledge it briefly.
-            3. If it's pure gibberish, just say "నాకు సరిగ్గా అర్థం కాలేదు." (I didn't understand).
-            
-            CRITICAL RULE: You MUST end your response by re-asking this exact question: "{question_to_reask}"
-            
-            Reply ONLY in Telugu. Do not use English script.
-            """
-            resp = gemini_model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(max_output_tokens=60, temperature=0.5)
-            )
-            track_tokens_usage(resp)
-            dynamic_text = resp.text.strip()
-
-            
-            # Return the list to trigger the instant FILLER AUDIO while it generates!
-            return ["FILLER_WAIT", dynamic_text]
-            
-        except Exception as e:
-            print(f"Smart Retry Error: {e}")
-
-    # Fallback to the old static retry if Gemini fails
     return RETRY_PREFIX + question_to_reask
-
-def _handle_hybrid_question(session_id, next_state, user_text):
-    """Answers a custom question while successfully moving to the next state."""
-    
-    # Get the exact script question we need to ask next
-    next_question = RETRY_QUESTIONS.get(next_state, "")
-    
-    global gemini_model
-    if gemini_model:
-        try:
-            prompt = f"""
-            You are Dipti, a polite Telugu sales agent for Mierae Solar.
-            If asked about the office location, you MUST explicitly say: "మా ఆఫీస్ విశాఖపట్నంలోని రైల్వే న్యూ కాలనీ దగ్గర ఉంది అండి."
-            The user just answered our previous question, but they ALSO asked a custom question inside this text: "{user_text}"
-            
-            1. Briefly answer their custom question in 1 short Telugu sentence.
-            2. IMMEDIATELY move the conversation forward by asking this exact next script question: "{next_question}"
-            
-            CRITICAL RULE: You must end your response with that exact script question. 
-            Reply ONLY in Telugu. Do not use English script.
-            """
-            
-            resp = gemini_model.generate_content(
-                prompt,
-                generation_config=genai.GenerationConfig(max_output_tokens=60, temperature=0.5)
-            )
-            
-            dynamic_text = resp.text.strip()
-            
-            # Return the filler + dynamic text combo!
-            return ["FILLER_WAIT", dynamic_text]
-            
-        except Exception as e:
-            print(f"Hybrid Retry Error: {e}")
-
-    # If Gemini fails, safely fall back to the static audio for the next state
-    return RETRY_PREFIX + next_question
 
 
 def handle_user_input(session, user_text):
@@ -934,105 +866,119 @@ _STATE_QUESTION_MAP_EN = {
 }
 
 
+def is_bot_or_voicemail(session_id, current_text):
+    """
+    Tracks text cumulatively across the session greeting to aggressively
+    kill bots trying to stream long paragraphs in short audio bursts.
+    """
+    if not current_text:
+        return False
+
+    text_low = current_text.lower().strip()
+    
+    # 1. Immediate Network & Bot Keywords Filter
+    bot_keywords = [
+        "switched off", "unavailable", "not reachable", "out of coverage", "voicemail",
+        "busy", "try again later", "number you are calling", "leave a message", "after the tone",
+        "beep", "please wait", "dialed", "automated", "virtual assistant", "recording",
+        "welcome to", "press 1", "press 2", "press one", "press two", "customer care",
+        "main menu", "assist you", "how may i help", "toll free",
+
+        # 🚀 THE NEW TRUECALLER / GATEKEEPER KILLERS
+        "record your name", "reason for calling", "person is available", 
+        "why you are calling", "who is calling", "truecaller", "google assistant",
+
+        "ట్రూకాలర్", "ట్రూ కాలర్", "రికార్డ్", "రీజన్", "స్క్రీనింగ్", "అసిస్టెంట్",
+        "కాలింగ్", "యువర్ నేమ్", "రీజన్ ఫర్",
+
+        
+        "sari aindi kadu", 
+        "invalid number", "wrong number", "check the number",
+        
+        # Telugu IVRs, Gatekeepers & Wrong Numbers
+        "స్విచ్ ఆఫ్", "అందుబాటులో లేదు", "కవరేజ్", "ఏరియా", "డయల్ చేసిన నంబర్", 
+        "నెట్‌వర్క్", "బిజీగా", "ప్రయత్నించండి", "బీప్", "మెసేజ్", "దయచేసి వేచి ఉండండి",
+        "సంప్రదించలేకపోతున్నాము", "లైన్ బిజీగా ఉంది", "స్వాగతం", "నొక్కండి", "కస్టమర్ కేర్", 
+        "సహాయం", "ప్రెస్ చేయండి", "కారణం చెప్పండి", "ఎవరు మాట్లాడుతున్నారు",
+        "సరైనది కాదు", "సరి అయింది కాదు", "సరియైనది కాదు", "సరిచూసుకోండి", 
+        "తప్పు నంబర్", "ఉనికిలో లేదు"
+
+        # ── Secretary / receptionist IVR (from live call logs) ──
+        "record your name", "record you name", "reason for calling",
+        "name and reason", "this person is available", "person is available",
+        "wait as we connect", "wait as we try", "connecting you",
+        "transferring your call", "transfer your call", "please hold",
+        "hold the line", "one moment please", "connecting to",
+        "will see if this person", "check if this person",
+        # ── Telugu equivalents ──
+        "పేరు చెప్పండి", "కారణం చెప్పండి", "కనెక్ట్ చేస్తున్నాము",
+        "వేచి ఉండండి", "ట్రాన్స్ఫర్", "హోల్డ్", "కనెక్ట్ అవుతున్నాము", "చెక్ చేస్తున్నాము", "ఈ వ్యక్తి అందుబాటులో ఉన్నారా"
+    ]
+    
+    if any(kw in text_low for kw in bot_keywords):
+        return True
+
+    # 2. Cumulative Text Accumulator Strategy
+    if session_id in sessions:
+        # Initialize an ongoing speech history buffer
+        if "bot_detect_buffer" not in sessions[session_id]:
+            sessions[session_id]["bot_detect_buffer"] = ""
+            
+        # Append the new fragment to our session memory
+        sessions[session_id]["bot_detect_buffer"] += " " + text_low
+        combined_text = sessions[session_id]["bot_detect_buffer"].strip()
+        
+        total_words = len(combined_text.split())
+        print(f"[Bot Memory Check] Session cumulative word count: {total_words} | Text so far: '{combined_text}'")
+        
+        # If they speak more than 5 words before we even start, it's a bot/IVR
+        if total_words > 5:
+            return True
+            
+    return False
+
 def ask_instant_ai(session_id, user_text=None, is_start=False):
+    # ── Initialize New Session ──
     if session_id not in sessions:
         sessions[session_id] = {
-            "state": "STATE_1",
+            "state": "STATE_0_INIT", # 🚀 Start in listening mode
             "retries": 0,
             "data": {},
-            "turn": 0,           # Q&A exchange counter
+            "turn": 0,
+            "bot_detect_buffer": ""
         }
 
     state = sessions[session_id]["state"]
-
-    if is_start:
-        return STATE_1_GREETING
-
-    user_text_safe = str(user_text).strip()
+    user_text_safe = str(user_text or "").strip()
     user_text_low = user_text_safe.lower()
 
+    # ── 100% STATIC GLOBAL LOCATION INTERCEPTOR ──
+    location_keywords = ["ఎక్కడ", "office", "address", "location", "ఆఫీస్", "అడ్రస్", "where"]
+    if any(kw in user_text_low for kw in location_keywords):
+        print(f"[Static Intercept] Catching location question in {state}!")
+        sessions[session_id]["retries"] = 0 
+        question_to_reask = RETRY_QUESTIONS.get(state, "")
+        return [STATE_LOCATION, RETRY_PREFIX + question_to_reask]
 
+    # ── HELPERS ──
     def _translate_to_english(text: str) -> str:
-        if not text or not text.strip():
-            return text
-
-        # ── 1. Sarvam AI translate (auto-detect source language) ─────────────────
+        if not text or not text.strip(): return text
         try:
             resp = requests.post(
                 "https://api.sarvam.ai/translate",
                 json={
-                    "input": text,
-                    "source_language_code": "auto",
-                    "target_language_code": "en-IN",
-                    "speaker_gender": "Female",
-                    "mode": "formal",
-                    "model": "mayura:v1",
-                    "enable_preprocessing": False,
+                    "input": text, "source_language_code": "auto", "target_language_code": "en-IN",
+                    "speaker_gender": "Female", "mode": "formal", "model": "mayura:v1", "enable_preprocessing": False,
                 },
-                headers={
-                    "api-subscription-key": "sk_1egy7shz_foVYeKo9OrfrtR454ZagxTyw",
-                    "Content-Type": "application/json",
-                },
+                headers={"api-subscription-key": "sk_1egy7shz_foVYeKo9OrfrtR454ZagxTyw", "Content-Type": "application/json"},
                 timeout=8,
             )
             if resp.ok:
                 translated = resp.json().get("translated_text", "").strip()
-                if translated:
-                    print(f"[Sarvam Translate] '{text}' → '{translated}'")
-                    return translated
-            print(f"[Sarvam Translate] Non-OK {resp.status_code}: {resp.text[:100]}")
-        except Exception as e:
-            print(f"[Sarvam Translate] Error: {e}")
-
-        # ── 2. Google Translate free fallback (auto-detect as well) ──────────────
-        try:
-            gt_resp = requests.get(
-                "https://translate.googleapis.com/translate_a/single",
-                params={"client": "gtx", "sl": "auto", "tl": "en", "dt": "t", "q": text},
-                timeout=8,
-            )
-            if gt_resp.ok:
-                data = gt_resp.json()
-                translated = "".join(part[0] for part in data[0] if part[0]).strip()
-                if translated:
-                    print(f"[Google Translate Fallback] '{text}' → '{translated}'")
-                    return translated
-        except Exception as e:
-            print(f"[Google Translate Fallback] Error: {e}")
-
-        print(f"[Translation] Both providers failed — storing raw: '{text[:50]}'")
+                if translated: return translated
+        except: pass
         return text
-    
-    def check_status_eng():
-        try:
-            test_inputs = [
-                "ନମସ୍କାର",   # Odia
-                "नमस्ते",     # Hindi
-                "నమస్కారం",  # Telugu
-                "ನಮಸ್ಕಾರ"    # Kannada
-            ]
 
-            results = []
-
-            for text in test_inputs:
-                output = _translate_to_english(text)
-                results.append(bool(output and isinstance(output, str)))
-
-            return {
-                "translation_pipeline_working": all(results),
-                "sarvam_key_present": (os.getenv("SARVAM_API_KEY")),
-                "gemini_key_present": (os.getenv("GEMINI_API_KEY")),
-                "elevenlabs_key_present": (os.getenv("ELEVENLABS_API_KEY")),
-            }
-
-        except Exception as e:
-            return {
-                "translation_pipeline_working": False,
-                "error": str(e)
-            }
-
-    # Helper: log a completed Q&A exchange to DB
-   # 🚀 UPGRADE: Run translation in the background so it never delays the phone call!
     def _log_exchange(answer: str):
         def _background_task():
             turn = sessions[session_id]["turn"] + 1
@@ -1040,20 +986,52 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
             question_text = _STATE_QUESTION_MAP_EN.get(state, state)
             translated_answer = _translate_to_english(answer)
             db.add_exchange(session_id, question_text, translated_answer, state, turn)
-            
-        # Fire and forget
         threading.Thread(target=_background_task).start()
 
-
-
-    # Helper: mark call complete in DB
     def _finish_call(status="completed"):
         lead = sessions[session_id].get("data", {})
         db.complete_call(session_id, lead_data=lead, status=status)
 
 
-    # ── STATE_1: Opening — interested in solar info? ──────────────────────────
-    if state == "STATE_1":
+    # ── 🚀 STATE 0: THE INITIAL LISTEN PHASE ──
+    if state == "STATE_0_INIT":
+        
+        # 1. Handle No Speech / 2.5s Silence Timeout
+        if not user_text_safe:
+            print("[STATE_0] Silence detected. Moving to greeting.")
+            sessions[session_id]["state"] = "STATE_1"
+            return STATE_1_GREETING
+            
+        # 2. Safe Human Whitelist
+        human_greetings = [
+            "hello", "హలో", "evaru", "ఎవరు", "చెప్పండి", "cheppandi", 
+            "namaste", "నమస్తే", "అవును", "avunu", "మాట్లాడేది", "హలో హలో", "ఎవరు మాట్లాడేది"
+        ]
+        
+        if any(word in user_text_low for word in human_greetings):
+            print(f"[STATE_0] Human greeting '{user_text_safe}' detected. Moving to greeting.")
+            sessions[session_id]["state"] = "STATE_1"
+            return STATE_1_GREETING
+
+        # 3. Bot & Word Count Detection (Max 4 words allowed for humans picking up)
+        word_count = len(user_text_low.split())
+        if word_count > 4 or is_bot_or_voicemail(session_id, user_text_safe):
+            print("\n🚨 [BOT DETECTION] Call disconnected! Opposite side spoke a long IVR message immediately. 🚨")
+            print(f"   Detected Text: '{user_text_safe}'\n")
+            sessions[session_id]["state"] = "ENDED"
+            _finish_call(status="voicemail_or_bot") 
+            return STATE_DISCONNECT
+            
+        # 4. 🚀 IGNORING BACKGROUND NOISE (The Fix)
+        # If it's a short word like 'అవైలబుల్' but NOT in the greeting whitelist, 
+        # do NOT change the state. Return an empty string so the bot stays quiet.
+        print(f"[STATE_0] Ignored background noise / non-greeting: '{user_text_safe}'. Still listening...")
+        return ""
+
+
+    # ── STATE_1: Opening ──
+    elif state == "STATE_1":
+
         if is_positive(user_text_low):
             _log_exchange(user_text_safe)
             sessions[session_id]["retries"] = 0
@@ -1065,108 +1043,69 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
             _finish_call(status="not_interested")
             return STATE_1_NO_END
 
-    # ── STATE_2: Property Type ────────────────────────────────────────────────
+
+    # ── STATE_2: Property Type ──
     elif state == "STATE_2":
         prop = _detect_property_type(user_text_low)
         if prop is None:
             return _retry_or_end(session_id, "STATE_2", user_text_safe)
-            
         _log_exchange(user_text_safe)
         sessions[session_id]["data"]["property_type"] = prop
         sessions[session_id]["retries"] = 0
         sessions[session_id]["state"] = "STATE_3"
-        
-        # 🚀 HYBRID INTERCEPT: Did they ask an extra question? (More than 5 words)
-        if len(user_text_safe.split()) > 5:
-            return _handle_hybrid_question(session_id, "STATE_3", user_text_safe)
-            
         return STATE_3_BILL
 
-    # ── STATE_3: Monthly Bill Range ───────────────────────────────────────────
+
+    # ── STATE_3: Monthly Bill Range ──
     elif state == "STATE_3":
         bill = _detect_bill_range(user_text_low)
         if bill is None:
             return _retry_or_end(session_id, "STATE_3", user_text_safe)
-            
         _log_exchange(user_text_safe)
         sessions[session_id]["data"]["bill_range"] = bill
         sessions[session_id]["retries"] = 0
         sessions[session_id]["state"] = "STATE_4"
-        
-        # 🚀 NEW: If the bill is under 1000, handle custom combo message
         if bill == "very_low":
-            if len(user_text_safe.split()) > 5:
-                return _handle_hybrid_question(session_id, "STATE_4", user_text_safe)
             return STATE_3_LOW_BILL_CONTINUE
-
-        # Normal path for all other bills (> 1000)
-        if len(user_text_safe.split()) > 5:
-            return _handle_hybrid_question(session_id, "STATE_4", user_text_safe)
-            
         return STATE_4_TIMELINE
 
-   # ── STATE_4: Timeline ─────────────────────────────────────────────────────
+
+    # ── STATE_4: Timeline ──
     elif state == "STATE_4":
         timeline = _detect_timeline(user_text_low)
-        
         if timeline is None:
             return _retry_or_end(session_id, "STATE_4", user_text_safe)
-            
-        # 🚀 THE NEW FIX: If it was classified as an enquiry, BUT they asked a long question, 
-        # intercept it and answer their question instead of hanging up!
-        if timeline == "enquiry" and len(user_text_safe.split()) > 5:
-            print("[Hybrid Intercept] Saved call from accidental enquiry drop!")
-            return _handle_hybrid_question(session_id, "STATE_4", user_text_safe)
-            
         _log_exchange(user_text_safe)
         sessions[session_id]["data"]["timeline"] = timeline
-        
-        # Now, if it truly is just a short enquiry (e.g., "సమాచారం కోసం మాత్రమే" - 3 words), drop the call.
         if timeline == "enquiry":
             sessions[session_id]["state"] = "ENDED"
             _finish_call(status="enquiry_only")
             return STATE_4_ENQUIRY_END
-
-        # Normal path: Moving to Payment
         sessions[session_id]["retries"] = 0
         sessions[session_id]["state"] = "STATE_5"
-        
-        # 🚀 HYBRID INTERCEPT for normal answers
-        if len(user_text_safe.split()) > 5:
-            return _handle_hybrid_question(session_id, "STATE_5", user_text_safe)
-            
         return STATE_5_PAYMENT
 
-    # ── STATE_5: Payment Preference ───────────────────────────────────────────
+
+    # ── STATE_5: Payment Preference ──
     elif state == "STATE_5":
         payment = _detect_payment(user_text_low)
         if payment is None:
             return _retry_or_end(session_id, "STATE_5", user_text_safe)
-
         _log_exchange(user_text_safe)
         sessions[session_id]["data"]["payment"] = payment
         sessions[session_id]["retries"] = 0
-
-        print(f"[Session {session_id}] Lead Data: {sessions[session_id]['data']}")
         _finish_call(status="completed")
-
-        # We don't need a hybrid check here because the call is successfully over!
         sessions[session_id]["state"] = "ENDED"
         return STATE_6_FINAL
-    
-    elif state == "STATE_DYNAMIC_QA":
-        dynamic_text = generate_dynamic_reply(session_id, user_text_safe, "Answering solar efficiency questions")
-        return ["FILLER_WAIT", dynamic_text]
 
-    # ── STATE_6: Closing / any further input ─────────────────────────────────
+
+    # ── STATE_6: Closing ──
     elif state in ("STATE_6", "ENDED"):
         sessions[session_id]["state"] = "ENDED"
         return STATE_DISCONNECT
-    
+
 
     return STATE_1_GREETING
-
-
 # ─────────────────────────────────────────────────────────────────────────────
 # TTS & Audio
 # ─────────────────────────────────────────────────────────────────────────────

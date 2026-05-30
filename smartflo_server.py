@@ -204,14 +204,15 @@ _recognizer = sr.Recognizer()
 # Sarvam AI STT client (reuse from bot_module — same API key)
 _sarvam_client = bot_module.sarvam_client
 
-
 def transcribe_mulaw(mulaw_data: bytes) -> str:
-    """Convert mu-law audio → WAV → text via Sarvam AI STT ONLY (Hyper-fast)."""
+    """Convert mu-law audio → WAV → text via Sarvam (te-IN) or Google (te-IN & en-IN)."""
     wav_bytes = audio_converter.mulaw_to_wav_bytes(mulaw_data)
     if not wav_bytes:
         return ""
 
-    # ── Primary: Sarvam AI STT (saaras:v3 — best for Indian languages) ──
+    user_text = ""
+
+    # ── 1. Primary: Sarvam AI STT (Telugu) ──
     try:
         import io
         response = _sarvam_client.speech_to_text.transcribe(
@@ -219,19 +220,58 @@ def transcribe_mulaw(mulaw_data: bytes) -> str:
             model="saaras:v3",
             language_code="te-IN",
         )
-        text = (response.transcript or "").strip()
-        
-        if text:
-            print(f"[Sarvam STT] '{text}'")
-            return text
-        else:
-            # If Sarvam hears nothing, instantly return empty instead of trying Google!
-            print("[Sarvam STT] Empty transcript (Silence/Noise detected)")
+        user_text = (response.transcript or "").strip()
+        if user_text:
+            print(f"[Sarvam STT] '{user_text}'")
+            return user_text
+    except Exception as e:
+        print(f"[Sarvam STT] Error/Empty — trying Google fallback")
+
+    # ── 2. Fallback: Google free STT (Telugu) ──
+    if not user_text:
+        try:
+            import io
+            import speech_recognition as sr
+            _local_recognizer = sr.Recognizer()
+            
+            with sr.AudioFile(io.BytesIO(wav_bytes)) as src:
+                audio_data = _local_recognizer.record(src)
+            user_text = _local_recognizer.recognize_google(audio_data, language="te-IN")
+            
+            if user_text:
+                print(f"[Google STT Fallback] '{user_text}'")
+                return user_text
+        except sr.UnknownValueError:
+            pass
+        except Exception:
+            pass
+
+    # ── 🚀 3. THE BOT CATCHER: Google STT (English) ──
+    # If Telugu models heard nothing, the caller might be a fast English AI (Truecaller).
+    # We do one final check in English to catch the gatekeeper keywords!
+    if not user_text:
+        try:
+            import io
+            import speech_recognition as sr
+            _local_recognizer = sr.Recognizer()
+            
+            with sr.AudioFile(io.BytesIO(wav_bytes)) as src:
+                audio_data = _local_recognizer.record(src)
+            
+            # Listen strictly for English this time
+            user_text = _local_recognizer.recognize_google(audio_data, language="en-IN")
+            
+            if user_text:
+                print(f"🕵️ [English Bot Catcher] Caught hidden English: '{user_text}'")
+                return user_text
+        except sr.UnknownValueError:
+            print("[STT] No speech detected in any language")
+            return ""
+        except Exception:
             return ""
             
-    except Exception as e:
-        print(f"[Sarvam STT] API Error: {e}")
-        return ""
+    return user_text
+
 
 def tts_to_mulaw(text: str) -> bytes:
     """
@@ -702,7 +742,7 @@ async def smartflo_ws(websocket: WebSocket):
                 print("[SmartFlo] 'connected' event")
                 continue
 
-            # ── START ──────────────────────────────────────────────────
+          # ── START ──────────────────────────────────────────────────
             if event_type == "start":
                 start_data = data.get("start", {})
                 stream_sid = start_data.get("streamSid", "")
@@ -710,8 +750,6 @@ async def smartflo_ws(websocket: WebSocket):
                 session_id = stream_sid  # use stream_sid as bot session key
 
                 # ── Extract numbers ────────────────────────────────────────────
-                # SmartFlo puts caller info in different fields depending on
-                # the call type (inbound vs outbound dialer).
                 custom_data  = start_data.get("customData", {})
                 
                 # 1. Customer Number (the actual user)
@@ -747,31 +785,42 @@ async def smartflo_ws(websocket: WebSocket):
                 call_sid = start_data.get("callSid", "")
                 db.create_call(session_id, mobile_number=agent_number, customer_number=customer_number, call_sid=call_sid)
 
-                # Split greeting into two parts to reduce initial TTFB (Time To First Byte)
-                # First part is short (Greeting), Second part is longer (Subsidy intro)
-                part1 = getattr(bot_module, "STATE_1_GREETING_PART1", "")
-                part2 = getattr(bot_module, "STATE_1_GREETING_PART2", "")
-                
-                if part1 and part2:
-                    print(f"[SmartFlo] Greeting Part 1: {part1}")
-                    # Prepend 1.2s silence to ensure the first word isn't clipped by network delay
-                    await send_audio_to_smartflo(websocket, stream_sid, part1, bot_speaking, session_id, prepend_silence_s=1.2)
-                    print(f"[SmartFlo] Greeting Part 2: {part2[:60]}…")
-                    await send_audio_to_smartflo(websocket, stream_sid, part2, bot_speaking, session_id)
-                else:
-                    greeting = bot_module.ask_instant_ai(session_id, is_start=True)
-                    print(f"[SmartFlo] Greeting (Legacy): {greeting[:60]}…")
-                    await send_audio_to_smartflo(websocket, stream_sid, greeting, bot_speaking, session_id, prepend_silence_s=1.2)
+                # 🚀 NEW ARCHITECTURE: Passive Connect (Listen First)
+                # We do NOT speak immediately. We initialize the state and wait.
+                bot_module.sessions[session_id] = {
+                    "state": "STATE_0_INIT",
+                    "retries": 0,
+                    "data": {},
+                    "turn": 0,
+                    "bot_detect_buffer": ""
+                }
+                print("[SmartFlo] Call Connected! Listening for user or IVR to speak first...")
 
-                # Flush any echo buffered during greeting
+                # Flush any echo buffered 
                 smartflo_service.get_buffered_audio(stream_sid)
                 continue
 
             # ── MEDIA (incoming caller audio) ──────────────────────────
-           # ── MEDIA (incoming caller audio) ──────────────────────────
             if event_type == "media":
                 if not session or not stream_sid:
                     continue
+
+                current_state = bot_module.sessions.get(session_id, {}).get("state", "STATE_1")
+                if current_state == "STATE_0_INIT":
+                    init_frames = bot_module.sessions[session_id].get("init_frames", 0) + 1
+                    bot_module.sessions[session_id]["init_frames"] = init_frames
+                    
+                    # 225 frames = 4.5 seconds. Gives the IVR time to pick up!
+                    if init_frames == 225:
+                        print("[SmartFlo] 4.5s of initial silence. Forcing bot to introduce itself...")
+                        bot_reply = bot_module.ask_instant_ai(session_id, user_text="")
+                        
+                        if session_id in bot_module.sessions:
+                            bot_module.sessions[session_id]["no_speech"] = 0
+                            
+                        await send_audio_to_smartflo(websocket, stream_sid, bot_reply, bot_speaking, session_id, final=False)
+                        smartflo_service.get_buffered_audio(stream_sid)
+                        continue
 
                 # Discard incoming audio while bot is speaking (echo suppression)
                 if bot_speaking[0] or is_processing:
@@ -810,6 +859,21 @@ async def smartflo_ws(websocket: WebSocket):
 
                     if not user_text:
                         print("[SmartFlo] No speech detected")
+                        
+                        current_state = bot_module.sessions.get(session_id, {}).get("state", "STATE_1")
+                        
+                        # 🚀 THE FIX: Ignore empty STT (ringtones/static) during STATE_0.
+                        # Do NOT force the greeting here. Let the 4.5s timer handle it!
+                        if current_state == "STATE_0_INIT":
+                            print("[SmartFlo] Ignored ringtone/static during connect phase. Still listening...")
+                            continue
+
+                        # ── EXISTING NO SPEECH RETRY LOGIC (For State 1, 2, 3...) ──
+                        no_speech = bot_module.sessions.get(session_id, {}).get("no_speech", 0) + 1
+                        if session_id in bot_module.sessions:
+                            bot_module.sessions[session_id]["no_speech"] = no_speech
+
+                        # ── EXISTING NO SPEECH RETRY LOGIC ──
                         no_speech = bot_module.sessions.get(session_id, {}).get("no_speech", 0) + 1
                         if session_id in bot_module.sessions:
                             bot_module.sessions[session_id]["no_speech"] = no_speech
@@ -822,7 +886,6 @@ async def smartflo_ws(websocket: WebSocket):
                             break
                         else:
                             # Re-ask using RETRY_PREFIX + current-state retry question
-                            current_state = bot_module.sessions.get(session_id, {}).get("state", "STATE_1")
                             retry_q = bot_module.RETRY_QUESTIONS.get(current_state, "")
                             retry_msg = bot_module.RETRY_PREFIX + retry_q if retry_q else bot_module.RETRY_PREFIX + "దయచేసి మళ్లీ చెప్పండి."
                             print(f"[SmartFlo] Retry {no_speech}/{bot_module.MAX_NO_SPEECH}: {retry_msg[:50]}…")
@@ -897,24 +960,35 @@ async def smartflo_ws(websocket: WebSocket):
                 continue
 
     except WebSocketDisconnect:
-        print("[SmartFlo] WebSocket disconnected")
-        # Mark call dropped if not already ended
+        print("[SmartFlo] Customer hung up the call (WebSocket disconnected)")
         if session_id:
             current_state = bot_module.sessions.get(session_id, {}).get("state", "")
             if current_state != "ENDED":
-                db.complete_call(session_id, lead_data=bot_module.sessions.get(session_id, {}).get("data", {}), status="dropped")
+                db.complete_call(session_id, lead_data=bot_module.sessions.get(session_id, {}).get("data", {}), status="dropped_by_user")
+                
+    except RuntimeError as e:
+        # FastAPI/Starlette throws this when the client closes the connection abruptly mid-receive
+        if "Cannot call" in str(e) and "receive" in str(e):
+            print("[SmartFlo] Customer hung up the call (Connection closed abruptly).")
+            if session_id:
+                current_state = bot_module.sessions.get(session_id, {}).get("state", "")
+                if current_state != "ENDED":
+                    db.complete_call(session_id, lead_data=bot_module.sessions.get(session_id, {}).get("data", {}), status="dropped_by_user")
+        else:
+            print(f"[SmartFlo] Runtime error: {e}")
+            
     except Exception as e:
         print(f"[SmartFlo] Unexpected error: {e}")
         try:
             await websocket.close()
         except:
             pass
+            
     finally:
         if stream_sid:
             smartflo_service.end_session(stream_sid)
         if session_id and session_id in bot_module.sessions:
             del bot_module.sessions[session_id]
-        # Actively close the WebSocket so SmartFlo drops the call immediately
         try:
             await websocket.close()
         except Exception:
@@ -926,8 +1000,27 @@ async def smartflo_webhook(request: Request):
     data = await request.json()
 
     print("\n📞 SMARTFLO WEBHOOK HIT (Telugu BOT):")
-    print(data)
+    
+    # ── NETWORK LEVEL DROP DETECTION ──
+    call_status = data.get("call_status", "").lower()
+    connected = data.get("call_connected", "0")
+    duration = data.get("duration", "0")
+    customer_no = data.get("customer_no_with_prefix ", "") # Note the space in SmartFlo's key
+    
+    # If the call never connected (switched off, busy, out of coverage)
+    if connected == "0" or call_status in ["missed", "failed", "busy", "no_answer"]:
+        print(f"🚨 [NETWORK DROP] Call to {customer_no} failed to connect!")
+        print(f"   Reason: Phone is likely switched off, out of network, or busy (Status: {call_status})\n")
+        
+        # Log this failure to your database
+        session_id = data.get("ref_id") or data.get("call_id")
+        if session_id:
+            db.complete_call(session_id, lead_data={}, status="network_drop_or_switched_off")
+            
+        return {"status": "received", "action": "logged_as_network_drop"}
 
+    # Otherwise, just print the normal data
+    print(data)
     return {"status": "received"}
 
 # ---------------------------------------------------------------------------

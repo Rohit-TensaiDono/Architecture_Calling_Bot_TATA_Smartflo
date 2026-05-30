@@ -90,7 +90,8 @@ STATES = {
     ),
 
     # 🚀 NEW: The instant filler audio to cover Gemini's latency
-    "FILLER_WAIT": "ఒక్క నిమిషం అండి, చెక్ చేస్తున్నాను...",
+    "STATE_LOCATION": "మా ఆఫీస్ విశాఖపట్నంలోని రైల్వే న్యూ కాలనీ దగ్గర ఉంది అండి.",
+    
 }
 
 
