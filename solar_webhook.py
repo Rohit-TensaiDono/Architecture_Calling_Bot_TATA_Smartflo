@@ -288,6 +288,16 @@ def _detect_property_type(text):
         "సొంత ఇల్లే", "స్వంత ఇల్లే", "మాది సొంతిల్లు", "నా సొంత ఇల్లు", 
         "నాది సొంతిల్లు", "సొంత ఇల్లు అండి", "ఇండిపెండెంట్", "హవుస్", "మా సొంత ఇల్లు",
         "సొంత ఇల్లేనండి", "మాదేనండి"
+
+
+        "ఫామ్", "వ్యవసాయం", "ల్యాండ్", "పొలం", "స్థలం", "ఇల్లు", "జాగ", "ఇల్లు కట్టుకోవడానికి",
+        "సొంత ఇల్లు", "సొంతిల్లు", "సొంత ఇంటికి", "సొంతంగా",
+        
+        # 🚀 STT Phonetics & Misspellings
+        "vyavasayam", "polam", "land kosam", "farm house kosam", "farm kosam",
+        "sthalam", "jaaga", "illu kattukovadaniki", "farmhouse kosam", "illu kosam",
+        "sontha illu", "sonta illu", "sonthillu", "sontillu", "sontha inti", 
+        "sonta inti", "sonthanga"
     ]
 
     apartment_kw = [
@@ -941,13 +951,17 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
     # ── Initialize New Session ──
     if session_id not in sessions:
         sessions[session_id] = {
-            "state": "STATE_0_INIT", # 🚀 Start in listening mode
+            "state": "STATE_1", # 🚀 EAGER CONNECT: Start directly in STATE_1
             "retries": 0,
             "data": {},
             "turn": 0,
-            "bot_detect_buffer": ""
+            "bot_detect_buffer": "",
+            "no_speech": 0
         }
 
+    if is_start:
+        return STATE_1_GREETING
+    
     state = sessions[session_id]["state"]
     user_text_safe = str(user_text or "").strip()
     user_text_low = user_text_safe.lower()
@@ -993,44 +1007,10 @@ def ask_instant_ai(session_id, user_text=None, is_start=False):
         db.complete_call(session_id, lead_data=lead, status=status)
 
 
-    # ── 🚀 STATE 0: THE INITIAL LISTEN PHASE ──
-    if state == "STATE_0_INIT":
-        
-        # 1. Handle No Speech / 2.5s Silence Timeout
-        if not user_text_safe:
-            print("[STATE_0] Silence detected. Moving to greeting.")
-            sessions[session_id]["state"] = "STATE_1"
-            return STATE_1_GREETING
-            
-        # 2. Safe Human Whitelist
-        human_greetings = [
-            "hello", "హలో", "evaru", "ఎవరు", "చెప్పండి", "cheppandi", 
-            "namaste", "నమస్తే", "అవును", "avunu", "మాట్లాడేది", "హలో హలో", "ఎవరు మాట్లాడేది"
-        ]
-        
-        if any(word in user_text_low for word in human_greetings):
-            print(f"[STATE_0] Human greeting '{user_text_safe}' detected. Moving to greeting.")
-            sessions[session_id]["state"] = "STATE_1"
-            return STATE_1_GREETING
-
-        # 3. Bot & Word Count Detection (Max 4 words allowed for humans picking up)
-        word_count = len(user_text_low.split())
-        if word_count > 4 or is_bot_or_voicemail(session_id, user_text_safe):
-            print("\n🚨 [BOT DETECTION] Call disconnected! Opposite side spoke a long IVR message immediately. 🚨")
-            print(f"   Detected Text: '{user_text_safe}'\n")
-            sessions[session_id]["state"] = "ENDED"
-            _finish_call(status="voicemail_or_bot") 
-            return STATE_DISCONNECT
-            
-        # 4. 🚀 IGNORING BACKGROUND NOISE (The Fix)
-        # If it's a short word like 'అవైలబుల్' but NOT in the greeting whitelist, 
-        # do NOT change the state. Return an empty string so the bot stays quiet.
-        print(f"[STATE_0] Ignored background noise / non-greeting: '{user_text_safe}'. Still listening...")
-        return ""
 
 
     # ── STATE_1: Opening ──
-    elif state == "STATE_1":
+    if state == "STATE_1":
 
         if is_positive(user_text_low):
             _log_exchange(user_text_safe)

@@ -785,16 +785,22 @@ async def smartflo_ws(websocket: WebSocket):
                 call_sid = start_data.get("callSid", "")
                 db.create_call(session_id, mobile_number=agent_number, customer_number=customer_number, call_sid=call_sid)
 
-                # 🚀 NEW ARCHITECTURE: Passive Connect (Listen First)
-                # We do NOT speak immediately. We initialize the state and wait.
+                # 🚀 REVERT TO EAGER CONNECT (Speak Immediately)
                 bot_module.sessions[session_id] = {
-                    "state": "STATE_0_INIT",
+                    "state": "STATE_1",  # Skip the Listen-First state entirely!
                     "retries": 0,
                     "data": {},
                     "turn": 0,
-                    "bot_detect_buffer": ""
+                    "bot_detect_buffer": "",
+                    "no_speech": 0
                 }
-                print("[SmartFlo] Call Connected! Listening for user or IVR to speak first...")
+                
+                # Fetch greeting and stream it immediately
+                print("[SmartFlo] Call Connected! Firing immediate greeting...")
+                greeting = bot_module.ask_instant_ai(session_id, is_start=True)
+                
+                # 0.8s silence prepended so the network connects fully before the first syllable
+                await send_audio_to_smartflo(websocket, stream_sid, greeting, bot_speaking, session_id, prepend_silence_s=0.8)
 
                 # Flush any echo buffered 
                 smartflo_service.get_buffered_audio(stream_sid)
