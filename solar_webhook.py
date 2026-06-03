@@ -163,30 +163,54 @@ RETRY_QUESTIONS = {
 
 # ── Pre-recorded audio mapping ────────────────────────────────────────────────
 PRE_RECORDED_AUDIO = {
-    STATE_LOCATION: "static/pre_audio/STATE_LOCATION.wav",
+    STATE_LOCATION: "static/new_audio/STATE_LOCATION.wav",
 
-    STATE_1_GREETING:  "static/pre_audio/STATE_1_GREETING.wav",
-    STATE_1_NO_END:    "static/pre_audio/STATE_1_NO_END.wav",
-    STATE_2_PROPERTY:  "static/pre_audio/STATE_2_PROPERTY.wav",
-    STATE_3_BILL:      "static/pre_audio/STATE_3_BILL.wav",
-    STATE_3_LOW_BILL_CONTINUE: "static/pre_audio/STATE_3_LOW_BILL_CONTINUE.wav",
-    STATE_4_TIMELINE:  "static/pre_audio/STATE_4_TIMELINE.wav",
-    STATE_4_ENQUIRY_END: "static/pre_audio/STATE_4_ENQUIRY_END.wav",
-    STATE_5_PAYMENT:   "static/pre_audio/STATE_5_PAYMENT.wav",
-    STATE_6_CLOSING:   "static/pre_audio/STATE_6_CLOSING.wav",
-    STATE_DISCONNECT:  "static/pre_audio/STATE_DISCONNECT.wav",
-    STATE_6_FINAL: "static/pre_audio/STATE_6_FINAL.wav",
+    STATE_1_GREETING:  "static/new_audio/STATE_1_GREETING.wav",
+    STATE_1_NO_END:    "static/new_audio/STATE_1_NO_END.wav",
+    STATE_2_PROPERTY:  "static/new_audio/STATE_2_PROPERTY.wav",
+    STATE_3_BILL:      "static/new_audio/STATE_3_BILL.wav",
+    STATE_3_LOW_BILL_CONTINUE: "static/new_audio/STATE_3_LOW_BILL_CONTINUE.wav",
+    STATE_4_TIMELINE:  "static/new_audio/STATE_4_TIMELINE.wav",
+    STATE_4_ENQUIRY_END: "static/new_audio/STATE_4_ENQUIRY_END.wav",
+    STATE_5_PAYMENT:   "static/new_audio/STATE_5_PAYMENT.wav",
+    STATE_6_CLOSING:   "static/new_audio/STATE_6_CLOSING.wav",
+    STATE_DISCONNECT:  "static/new_audio/STATE_DISCONNECT.wav",
+    STATE_6_FINAL: "static/new_audio/STATE_6_FINAL.wav",
     
     # Retry / Error pre-recordings
-    END_MISUNDERSTAND: "static/pre_audio/END_MISUNDERSTAND.wav",
-    NO_SPEECH_END:     "static/pre_audio/NO_SPEECH_END.wav",
-    RETRY_PREFIX + "దయచేసి మళ్లీ చెప్పండి.": "static/pre_audio/NO_SPEECH_RETRY.wav",
+    END_MISUNDERSTAND: "static/new_audio/END_MISUNDERSTAND.wav",
+    # 🚀 FIX 1: Split the generic retry and map the prefix independently
+    "దయచేసి మళ్లీ చెప్పండి.": "static/new_audio/NO_SPEECH_END.wav",
+    RETRY_PREFIX:            "static/new_audio/RETRY_PREFIX.wav",
 }
 
-# Auto-add retry questions to pre-recorded mapping
+# 🚀 FIX 2: Auto-add retry questions WITHOUT combining strings
 for state_key, q_text in RETRY_QUESTIONS.items():
-    full_retry_text = RETRY_PREFIX + q_text
-    PRE_RECORDED_AUDIO[full_retry_text] = f"static/pre_audio/{state_key}_RETRY.wav"
+    PRE_RECORDED_AUDIO[q_text] = f"static/new_audio/{state_key}_RETRY.wav"
+
+
+# ── Startup: Verify all audio file paths ─────────────────────────────────────
+
+
+def _check_pre_recorded_files():
+    missing_files = []
+    
+    # Loop through the dictionary and check if the physical file exists
+    for state_text, file_path in PRE_RECORDED_AUDIO.items():
+        if not os.path.exists(file_path):
+            missing_files.append(file_path)
+            
+    if missing_files:
+        print(f"\n🚨 [STARTUP WARNING] {len(missing_files)} Audio File(s) MISSING! 🚨")
+        print("The bot will use the old dynamic AI voice for these specific paths:")
+        for path in missing_files:
+            print(f"   ✗ {path}")
+        print("-" * 50, "\n")
+    else:
+        print(f"\n✅ [STARTUP SUCCESS] All {len(PRE_RECORDED_AUDIO)} audio files found and integrated correctly!\n")
+
+# Run the check the moment the file is loaded
+_check_pre_recorded_files()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Intent helpers
@@ -770,8 +794,8 @@ def _retry_or_end(session_id, state, user_text=""):
         return END_MISUNDERSTAND
         
     question_to_reask = RETRY_QUESTIONS.get(state, "")
-    return RETRY_PREFIX + question_to_reask
-
+   # 🚀 FIX 3: Return a list so the server plays them sequentially
+    return [RETRY_PREFIX, question_to_reask]
 
 def handle_user_input(session, user_text):
     """
