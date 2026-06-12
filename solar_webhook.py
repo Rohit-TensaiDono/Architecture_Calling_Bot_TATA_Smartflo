@@ -212,6 +212,71 @@ def _check_pre_recorded_files():
 # Run the check the moment the file is loaded
 _check_pre_recorded_files()
 
+def _translate_to_english(text: str) -> str:
+    if not text or not text.strip():
+        return text
+
+    # 1. Sarvam AI translate
+    try:
+        resp = requests.post(
+            "https://api.sarvam.ai/translate",
+            json={
+                "input": text,
+                "source_language_code": "auto",
+                "target_language_code": "en-IN",
+                "speaker_gender": "Female",
+                "mode": "formal",
+                "model": "mayura:v1",
+                "enable_preprocessing": False,
+            },
+            headers={
+                "api-subscription-key": os.getenv("SARVAM_API_KEY", "sk_1egy7shz_foVYeKo9OrfrtR454ZagxTyw"),
+                "Content-Type": "application/json",
+            },
+            timeout=8,
+        )
+        if resp.ok:
+            translated = resp.json().get("translated_text", "").strip()
+            if translated:
+                print(f"[Sarvam Translate] '{text}' → '{translated}'")
+                return translated
+        print(f"[Sarvam Translate] Non-OK {resp.status_code}: {resp.text[:100]}")
+    except Exception as e:
+        print(f"[Sarvam Translate] Error: {e}")
+
+    # 2. Google Translate free fallback
+    try:
+        gt_resp = requests.get(
+            "https://translate.googleapis.com/translate_a/single",
+            params={"client": "gtx", "sl": "auto", "tl": "en", "dt": "t", "q": text},
+            timeout=8,
+        )
+        if gt_resp.ok:
+            data = gt_resp.json()
+            translated = "".join(part[0] for part in data[0] if part[0]).strip()
+            if translated:
+                print(f"[Google Translate Fallback] '{text}' → '{translated}'")
+                return translated
+    except Exception as e:
+        print(f"[Google Translate Fallback] Error: {e}")
+
+    print(f"[Translation] Both providers failed — storing raw: '{text[:50]}'")
+    return text
+
+def check_status_eng():
+    try:
+        test_inputs = [" నమస్కారం", "नमस्ते", "ନମସ୍କାର"]
+        results = [bool(_translate_to_english(t)) for t in test_inputs]
+        return {
+            "translation_pipeline_working": all(results),
+            "sarvam_key_present": bool(os.getenv("SARVAM_API_KEY")),
+            "gemini_key_present": bool(os.getenv("GEMINI_API_KEY")),
+            "elevenlabs_key_present": bool(os.getenv("ELEVENLABS_API_KEY")),
+        }
+    except Exception as e:
+        return {"translation_pipeline_working": False, "error": str(e)}
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Intent helpers
 # ─────────────────────────────────────────────────────────────────────────────
