@@ -1,3 +1,5 @@
 env/
 templates/
 __pycache__/
+
+.env
